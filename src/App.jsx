@@ -6,9 +6,12 @@ import {
 } from "recharts";
 
 // ─── SHEET URLs (one per year tab) ───────────────────────────────────────────
+// On Netlify: requests go to /api/2025 and /api/2026 which are proxied via _redirects
+// On localhost: falls back to direct Google Sheets URL via CORS proxy
+const IS_LOCAL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 const SHEETS = [
-  { year: 2025, url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=2051502240&single=true&output=csv" },
-  { year: 2026, url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=268453733&single=true&output=csv"  },
+  { year: 2025, localUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=2051502240&single=true&output=csv", prodUrl: "/api/2025" },
+  { year: 2026, localUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=268453733&single=true&output=csv",  prodUrl: "/api/2026" },
 ];
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -206,15 +209,22 @@ export default function Dashboard() {
   // ── Fetch both tabs ──────────────────────────────────────────────────────
   const fetchData = async () => {
     setLoading(true); setError(null);
-    // Use a CORS proxy so the browser can fetch Google Sheets CSV from localhost
-    const PROXY = "https://corsproxy.io/?";
     try {
       const results = await Promise.all(
-        SHEETS.map(async ({ year, url }) => {
-          const proxied = PROXY + encodeURIComponent(`${url}&t=${Date.now()}`);
-          const res = await fetch(proxied);
-          if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${year} data`);
-          const text = await res.text();
+        SHEETS.map(async ({ year, localUrl, prodUrl }) => {
+          let text = null;
+          if (IS_LOCAL) {
+            // localhost: use CORS proxy
+            const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(localUrl + "&t=" + Date.now())}`;
+            const res = await fetch(proxied);
+            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${year} data`);
+            text = await res.text();
+          } else {
+            // Netlify: use redirect proxy (no CORS issue)
+            const res = await fetch(`${prodUrl}?t=${Date.now()}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${year} data`);
+            text = await res.text();
+          }
           const parsed = parseCSV(text, year);
           if (parsed.length === 0) throw new Error(`No data parsed for ${year} — check the sheet is published`);
           return parsed;
