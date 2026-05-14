@@ -152,18 +152,35 @@ const TOOLTIP_STYLE = {
 };
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
-function KPICard({ title, value, sub, target, color, trend }) {
+function KPICard({ title, value, sub, target, color, trend, trendRaw, trendLabel, trendIsRate }) {
+  // trend: numeric delta. trendIsRate=true means it's a rate (show as %), false means raw count
+  const hasTrend = trend != null && trend !== 0;
   const tc = trend > 0 ? "#10B981" : trend < 0 ? "#EF4444" : "#94A3B8";
+  const arrow = trend > 0 ? "▲" : trend < 0 ? "▼" : "—";
+  const trendStr = hasTrend
+    ? trendIsRate !== false
+      ? pct(Math.abs(trend))
+      : (Math.abs(trend) % 1 === 0 ? Math.abs(trend).toLocaleString() : Math.abs(trend).toFixed(1))
+    : null;
+
   return (
     <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:16, padding:"20px 24px", position:"relative", overflow:"hidden" }}>
       <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:color, borderRadius:"16px 16px 0 0" }} />
       <div style={{ color:"#94A3B8", fontSize:12, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8 }}>{title}</div>
       <div style={{ fontSize:32, fontWeight:800, color:"#F1F5F9", letterSpacing:"-0.02em" }}>{value}</div>
       {sub && <div style={{ color:"#64748B", fontSize:13, marginTop:4 }}>{sub}</div>}
-      {target != null && (
+      {(target != null || trend != null) && (
         <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-          <span style={{ color:"#64748B", fontSize:12 }}>Target: {pct(target)}</span>
-          {trend != null && <span style={{ color:tc, fontSize:12, fontWeight:700 }}>{trend>0?"▲":trend<0?"▼":"—"} {trend!==0?pct(Math.abs(trend))+" MoM":"No change"}</span>}
+          {target != null && <span style={{ color:"#64748B", fontSize:12 }}>Target: {pct(target)}</span>}
+          {trend != null && hasTrend && (
+            <span style={{ color:tc, fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:3 }}>
+              {arrow} {trendStr}
+              {trendLabel && <span style={{ color:"#475569", fontWeight:400, fontSize:11 }}> {trendLabel}</span>}
+            </span>
+          )}
+          {trend != null && !hasTrend && trendLabel && (
+            <span style={{ color:"#475569", fontSize:11 }}>— No change {trendLabel}</span>
+          )}
         </div>
       )}
     </div>
@@ -310,10 +327,21 @@ export default function Dashboard() {
 
   const overall   = useMemo(() => calcMetrics(filtered), [filtered]);
   const lastTwo   = monthlyTrend.slice(-2);
-  const momSnap   = lastTwo.length===2 ? lastTwo[1].snapRate  - lastTwo[0].snapRate  : 0;
-  const momClose  = lastTwo.length===2 ? lastTwo[1].closeRate - lastTwo[0].closeRate : 0;
-  const momOrders = lastTwo.length===2 ? lastTwo[1].orders    - lastTwo[0].orders    : 0;
-  const momQuote  = lastTwo.length===2 ? lastTwo[1].quoteRate - lastTwo[0].quoteRate : 0;
+  const hasMoM    = lastTwo.length === 2;
+  const momLabel  = hasMoM ? `vs ${lastTwo[0].name}` : "";
+  const momPrev   = hasMoM ? lastTwo[0] : null;
+  const momCurr   = hasMoM ? lastTwo[1] : null;
+
+  // All MoM deltas — positive = green (improved), negative = red (declined)
+  const momSnap      = hasMoM ? momCurr.snapRate   - momPrev.snapRate   : 0;
+  const momClose     = hasMoM ? momCurr.closeRate  - momPrev.closeRate  : 0;
+  const momOrders    = hasMoM ? momCurr.orders     - momPrev.orders     : 0;
+  const momQuote     = hasMoM ? momCurr.quoteRate  - momPrev.quoteRate  : 0;
+  const momEnq       = hasMoM ? momCurr.enquiries  - momPrev.enquiries  : 0;
+  const momSnap$     = hasMoM ? momCurr.snapCells  - momPrev.snapCells  : 0;
+  const momAppt      = hasMoM ? momCurr.appointments - momPrev.appointments : 0;
+  const momKept      = hasMoM ? momCurr.apptsKept  - momPrev.apptsKept  : 0;
+  const momQuotes$   = hasMoM ? momCurr.quotes     - momPrev.quotes     : 0;
 
   const improvements = personSummary.filter(p => p.quoteRate<0.30 || p.closeRate<0.20 || p.snapRate<0.40);
 
@@ -518,13 +546,13 @@ export default function Dashboard() {
 
             <SectionHeader>Key Performance Indicators</SectionHeader>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))", gap:14, marginBottom:28 }}>
-              <KPICard title="Unique Customers"    value={fmtNum(overall.enquiries)}    color="#6366F1" sub="Total enquiries" />
-              <KPICard title="Snap Cells"           value={fmtNum(overall.snapCells)}    color="#3B82F6" sub={`${pct(overall.snapRate)} of enquiries`} trend={momSnap} target={0.40} />
-              <KPICard title="Appointments"         value={fmtNum(overall.appointments)} color="#06B6D4" sub={`${pct(overall.apptRate)} of enquiries`} />
-              <KPICard title="Appointments Kept"    value={fmtNum(overall.apptsKept)}    color="#8B5CF6" sub={`${pct(overall.keptRate)} of booked`} />
-              <KPICard title="Outbound Calls"       value={fmtNum(overall.outbound)}     color="#F97316" />
-              <KPICard title="Quotes"               value={fmtNum(overall.quotes)}       color="#10B981" sub={`${pct(overall.quoteRate)} of enquiries`} trend={momQuote} target={0.30} />
-              <KPICard title="Total Orders"         value={fmtNum(overall.orders)}       color="#EC4899" sub={`${pct(overall.closeRate)} order rate`} trend={momClose} target={0.20} />
+              <KPICard title="Unique Customers"  value={fmtNum(overall.enquiries)}    color="#6366F1" sub="Total enquiries"                        trend={momEnq}    trendRaw={momEnq}    trendIsRate={false} trendLabel={momLabel} />
+              <KPICard title="Snap Cells"         value={fmtNum(overall.snapCells)}    color="#3B82F6" sub={`${pct(overall.snapRate)} of enquiries`} trend={momSnap$}  trendRaw={momSnap$}  trendIsRate={false} trendLabel={momLabel} target={0.40} />
+              <KPICard title="Appointments"       value={fmtNum(overall.appointments)} color="#06B6D4" sub={`${pct(overall.apptRate)} of enquiries`} trend={momAppt}   trendRaw={momAppt}   trendIsRate={false} trendLabel={momLabel} />
+              <KPICard title="Appointments Kept"  value={fmtNum(overall.apptsKept)}    color="#8B5CF6" sub={`${pct(overall.keptRate)} of booked`}    trend={momKept}   trendRaw={momKept}   trendIsRate={false} trendLabel={momLabel} />
+              <KPICard title="Outbound Calls"     value={fmtNum(overall.outbound)}     color="#F97316" />
+              <KPICard title="Quotes"             value={fmtNum(overall.quotes)}       color="#10B981" sub={`${pct(overall.quoteRate)} of enquiries`} trend={momQuotes$} trendRaw={momQuotes$} trendIsRate={false} trendLabel={momLabel} target={0.30} />
+              <KPICard title="Total Orders"       value={fmtNum(overall.orders)}       color="#EC4899" sub={`${pct(overall.closeRate)} order rate`}   trend={momOrders} trendRaw={momOrders} trendIsRate={false} trendLabel={momLabel} target={0.20} />
             </div>
 
             {/* ── FUNNEL 1: From Unique Customers ── */}
