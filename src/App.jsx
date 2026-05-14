@@ -203,6 +203,72 @@ function FilterPill({ label, active, color, onClick }) {
   );
 }
 
+
+// ─── SANKEY FUNNEL COMPONENT ──────────────────────────────────────────────────
+function SankeyFunnel({ data }) {
+  const W = 620, H = 260;
+  const NODE_W = 14;
+  const COLORS = ['#4F6EF7','#7C5CF6','#06B6D4','#8B5CF6','#10B981','#F59E0B'];
+
+  const stages = [
+    { id:'enq',  label:'Enquiries',    val: data.enquiries    || 0 },
+    { id:'snap', label:'Snap Cells',   val: data.snapCells    || 0 },
+    { id:'appt', label:'Appointments', val: data.appointments || 0 },
+    { id:'kept', label:'Appts Kept',   val: data.apptsKept    || 0 },
+    { id:'quot', label:'Quotes',       val: data.quotes       || 0 },
+    { id:'ord',  label:'Orders',       val: data.orders       || 0 },
+  ].filter(s => s.val > 0);
+
+  const n = stages.length;
+  if (n < 2) return null;
+
+  const maxVal  = stages[0].val;
+  const MIN_H   = 6;
+  const MAX_H   = H - 60;
+  const CENTER_Y = H / 2;
+  const colSpan = (W - NODE_W) / (n - 1);
+
+  const nodes = stages.map((s, i) => {
+    const h = Math.max(MIN_H, (s.val / maxVal) * MAX_H);
+    const x = i * colSpan;
+    const y = CENTER_Y - h / 2;
+    return { ...s, x, y, h, color: COLORS[i % COLORS.length] };
+  });
+
+  const flows = [];
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const s = nodes[i], t = nodes[i+1];
+    const fh_s = Math.max(MIN_H, (t.val / maxVal) * MAX_H);
+    const fh_t = fh_s;
+    const sy1 = CENTER_Y - fh_s/2, sy2 = CENTER_Y + fh_s/2;
+    const ty1 = CENTER_Y - fh_t/2, ty2 = CENTER_Y + fh_t/2;
+    const x1 = s.x + NODE_W, x2 = t.x;
+    const cx = (x1 + x2) / 2;
+    flows.push({ path:`M${x1},${sy1} C${cx},${sy1} ${cx},${ty1} ${x2},${ty1} L${x2},${ty2} C${cx},${ty2} ${cx},${sy2} ${x1},${sy2} Z`, color: s.color, from: s, to: t });
+  }
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow:'visible' }}>
+      {flows.map((f,i) => (
+        <path key={i} d={f.path} fill={f.color} fillOpacity={0.2} stroke={f.color} strokeWidth={0.5} strokeOpacity={0.3} />
+      ))}
+      {nodes.map((n, i) => {
+        const pct = i > 0 ? ((n.val / nodes[i-1].val)*100).toFixed(1)+'%' : null;
+        const labelX = n.x + NODE_W + 6;
+        const midY = CENTER_Y;
+        return (
+          <g key={n.id}>
+            <rect x={n.x} y={n.y} width={NODE_W} height={n.h} rx={3} fill={n.color} />
+            <text x={labelX} y={midY - 18} fontSize={10} fill="#94A3B8" fontFamily="sans-serif">{n.label}</text>
+            <text x={labelX} y={midY - 4} fontSize={13} fontWeight={700} fill={n.color} fontFamily="sans-serif">{n.val.toLocaleString()}</text>
+            {pct && <text x={labelX} y={midY + 12} fontSize={10} fill="#64748B" fontFamily="sans-serif">{pct} conv.</text>}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [rawData,        setRawData]        = useState([]);
@@ -613,19 +679,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={monthlyTrend} margin={{ top:4, right:8, left:-8, bottom:0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" tick={{ fill:"#64748B", fontSize:11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill:"#64748B", fontSize:11 }} tickLine={false} axisLine={false} tickFormatter={v=>`${v}%`} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={v=>`${Number(v).toFixed(1)}%`} />
-                  <Legend wrapperStyle={{ color:"#94A3B8", fontSize:12 }} />
-                  <ReferenceLine y={20} stroke="#F59E0B44" strokeDasharray="4 4" label={{ value:"Target 20%", fill:"#F59E0B88", fontSize:10 }} />
-                  <Line type="monotone" dataKey="keptPct"       stroke="#8B5CF6" strokeWidth={2} dot={false} name="Appts Kept %" />
-                  <Line type="monotone" dataKey="closePct"      stroke="#F59E0B" strokeWidth={2} dot={false} name="Order Rate % (Quotes→Orders)" />
-                  <Line type="monotone" dataKey="keptToOrderPct" stroke="#EC4899" strokeWidth={2.5} dot={false} name="Orders from Kept Appts %" />
-                </LineChart>
-              </ResponsiveContainer>
+              <SankeyFunnel data={overall} />
             </div>
           </>
         )}
