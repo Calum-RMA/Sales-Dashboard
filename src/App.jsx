@@ -667,19 +667,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={monthlyTrend} margin={{ top:4, right:8, left:-8, bottom:0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" tick={{ fill:"#64748B", fontSize:11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill:"#64748B", fontSize:11 }} tickLine={false} axisLine={false} tickFormatter={v=>`${v}%`} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={v=>`${Number(v).toFixed(1)}%`} />
-                  <Legend wrapperStyle={{ color:"#94A3B8", fontSize:12 }} />
-                  <Line type="monotone" dataKey="snapPct"  stroke="#3B82F6" strokeWidth={2} dot={false} name="Snap Cell %" />
-                  <Line type="monotone" dataKey="apptPct"  stroke="#06B6D4" strokeWidth={2} dot={false} name="Appt %" />
-                  <Line type="monotone" dataKey="quotePct" stroke="#10B981" strokeWidth={2} dot={false} name="Quote %" />
-                  <Line type="monotone" dataKey="orderPct" stroke="#EC4899" strokeWidth={2} dot={false} name="Order %" />
-                </LineChart>
-              </ResponsiveContainer>
+              <SankeyFunnel data={overall} />
             </div>
 
             {/* ── FUNNEL 2: Conversion Rates ── */}
@@ -702,7 +690,6 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <SankeyFunnel data={overall} />
             </div>
           </>
         )}
