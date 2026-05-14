@@ -333,6 +333,7 @@ export default function Dashboard() {
   const momOrders    = hasMoM ? (momCurr.orders     || 0) - (momPrev.orders     || 0) : null;
   const momQuote     = hasMoM ? (momCurr.quoteRate  || 0) - (momPrev.quoteRate  || 0) : null;
   const momEnq       = hasMoM ? (momCurr.enquiries    || 0) - (momPrev.enquiries    || 0) : null;
+  const momOutbound  = hasMoM ? (momCurr.outbound     || 0) - (momPrev.outbound     || 0) : null;
   const momSnap$     = hasMoM ? (momCurr.snapCells    || 0) - (momPrev.snapCells    || 0) : null;
   const momAppt      = hasMoM ? (momCurr.appointments || 0) - (momPrev.appointments || 0) : null;
   const momKept      = hasMoM ? (momCurr.apptsKept    || 0) - (momPrev.apptsKept    || 0) : null;
@@ -545,7 +546,7 @@ export default function Dashboard() {
               <KPICard title="Snap Cells"         value={fmtNum(overall.snapCells)}    color="#3B82F6" sub={`${pct(overall.snapRate)} of enquiries`} trend={momSnap$}   prevValue={momPrev ? (momPrev.snapCells    || 0) : undefined} trendLabel={momLabel} target={0.40} />
               <KPICard title="Appointments"       value={fmtNum(overall.appointments)} color="#06B6D4" sub={`${pct(overall.apptRate)} of enquiries`} trend={momAppt}    prevValue={momPrev ? (momPrev.appointments || 0) : undefined} trendLabel={momLabel} />
               <KPICard title="Appointments Kept"  value={fmtNum(overall.apptsKept)}    color="#8B5CF6" sub={`${pct(overall.keptRate)} of booked`}    trend={momKept}    prevValue={momPrev ? (momPrev.apptsKept    || 0) : undefined} trendLabel={momLabel} />
-              <KPICard title="Outbound Calls"     value={fmtNum(overall.outbound)}     color="#F97316" />
+              <KPICard title="Outbound Calls"     value={fmtNum(overall.outbound)}     color="#F97316" trend={momOutbound} prevValue={momPrev ? (momPrev.outbound || 0) : undefined} trendLabel={momLabel} />
               <KPICard title="Quotes"             value={fmtNum(overall.quotes)}       color="#10B981" sub={`${pct(overall.quoteRate)} of enquiries`} trend={momQuotes$} prevValue={momPrev ? (momPrev.quotes       || 0) : undefined} trendLabel={momLabel} target={0.30} />
               <KPICard title="Total Orders"       value={fmtNum(overall.orders)}       color="#EC4899" sub={`${pct(overall.closeRate)} order rate`}   trend={momOrders}  prevValue={momPrev ? (momPrev.orders       || 0) : undefined} trendLabel={momLabel} target={0.20} />
             </div>
