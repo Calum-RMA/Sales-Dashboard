@@ -206,10 +206,7 @@ function FilterPill({ label, active, color, onClick }) {
 
 // ─── SANKEY FUNNEL COMPONENT ──────────────────────────────────────────────────
 function SankeyFunnel({ data }) {
-  const W = 620, H = 260;
-  const NODE_W = 14;
   const COLORS = ['#4F6EF7','#7C5CF6','#06B6D4','#8B5CF6','#10B981','#F59E0B'];
-
   const stages = [
     { id:'enq',  label:'Enquiries',    val: data.enquiries    || 0 },
     { id:'snap', label:'Snap Cells',   val: data.snapCells    || 0 },
@@ -222,50 +219,76 @@ function SankeyFunnel({ data }) {
   const n = stages.length;
   if (n < 2) return null;
 
-  const maxVal  = stages[0].val;
-  const MIN_H   = 6;
-  const MAX_H   = H - 60;
-  const CENTER_Y = H / 2;
-  const colSpan = (W - NODE_W) / (n - 1);
+  // Layout constants — all fit within 100% width using viewBox
+  const VW = 800, VH = 300;
+  const NODE_W = 12;
+  const LABEL_H = 56;       // space above centre for labels
+  const MAX_BAR = VH - LABEL_H - 40; // max bar height
+  const MIN_BAR = 4;
+  const CY = LABEL_H + MAX_BAR;  // baseline (bottom of tallest bar)
+  const PAD = 8;
+  const colW = (VW - PAD * 2) / n;
+
+  const maxVal = stages[0].val;
 
   const nodes = stages.map((s, i) => {
-    const h = Math.max(MIN_H, (s.val / maxVal) * MAX_H);
-    const x = i * colSpan;
-    const y = CENTER_Y - h / 2;
-    return { ...s, x, y, h, color: COLORS[i % COLORS.length] };
+    const barH = Math.max(MIN_BAR, (s.val / maxVal) * MAX_BAR);
+    const cx = PAD + i * colW + colW / 2;
+    const nx = cx - NODE_W / 2;
+    const ny = CY - barH;
+    return { ...s, cx, nx, ny, barH, color: COLORS[i % COLORS.length] };
   });
 
-  const flows = [];
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const s = nodes[i], t = nodes[i+1];
-    const fh_s = Math.max(MIN_H, (t.val / maxVal) * MAX_H);
-    const fh_t = fh_s;
-    const sy1 = CENTER_Y - fh_s/2, sy2 = CENTER_Y + fh_s/2;
-    const ty1 = CENTER_Y - fh_t/2, ty2 = CENTER_Y + fh_t/2;
-    const x1 = s.x + NODE_W, x2 = t.x;
-    const cx = (x1 + x2) / 2;
-    flows.push({ path:`M${x1},${sy1} C${cx},${sy1} ${cx},${ty1} ${x2},${ty1} L${x2},${ty2} C${cx},${ty2} ${cx},${sy2} ${x1},${sy2} Z`, color: s.color, from: s, to: t });
-  }
+  // Build flows between adjacent nodes
+  const flows = nodes.slice(0, -1).map((s, i) => {
+    const t = nodes[i + 1];
+    // Flow height = size of the smaller (destination) node
+    const fh = t.barH;
+    const x1 = s.nx + NODE_W;
+    const x2 = t.nx;
+    const midX = (x1 + x2) / 2;
+    const sy1 = CY - fh, sy2 = CY;
+    const ty1 = CY - fh, ty2 = CY;
+    return {
+      d: `M${x1},${sy1} C${midX},${sy1} ${midX},${ty1} ${x2},${ty1} L${x2},${ty2} C${midX},${ty2} ${midX},${sy2} ${x1},${sy2} Z`,
+      color: s.color,
+    };
+  });
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow:'visible' }}>
-      {flows.map((f,i) => (
-        <path key={i} d={f.path} fill={f.color} fillOpacity={0.2} stroke={f.color} strokeWidth={0.5} strokeOpacity={0.3} />
-      ))}
-      {nodes.map((n, i) => {
-        const pct = i > 0 ? ((n.val / nodes[i-1].val)*100).toFixed(1)+'%' : null;
-        const labelX = n.x + NODE_W + 6;
-        const midY = CENTER_Y;
-        return (
-          <g key={n.id}>
-            <rect x={n.x} y={n.y} width={NODE_W} height={n.h} rx={3} fill={n.color} />
-            <text x={labelX} y={midY - 18} fontSize={10} fill="#94A3B8" fontFamily="sans-serif">{n.label}</text>
-            <text x={labelX} y={midY - 4} fontSize={13} fontWeight={700} fill={n.color} fontFamily="sans-serif">{n.val.toLocaleString()}</text>
-            {pct && <text x={labelX} y={midY + 12} fontSize={10} fill="#64748B" fontFamily="sans-serif">{pct} conv.</text>}
-          </g>
-        );
-      })}
-    </svg>
+    <div style={{ width:'100%', padding:'8px 0' }}>
+      <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{ display:'block' }}>
+        {/* Flows */}
+        {flows.map((f, i) => (
+          <path key={i} d={f.d} fill={f.color} fillOpacity={0.18} stroke={f.color} strokeWidth={0.5} strokeOpacity={0.25} />
+        ))}
+        {/* Nodes + labels */}
+        {nodes.map((nd, i) => {
+          const prevVal = i > 0 ? nodes[i-1].val : null;
+          const convPct = prevVal ? ((nd.val / prevVal) * 100).toFixed(1) + '%' : null;
+          const labelY = nd.ny - 8;
+          return (
+            <g key={nd.id}>
+              {/* Bar */}
+              <rect x={nd.nx} y={nd.ny} width={NODE_W} height={nd.barH} rx={3} fill={nd.color} />
+              {/* Labels above bar */}
+              <text x={nd.cx} y={Math.max(14, labelY - 28)} textAnchor="middle" fontSize={10} fill="#64748B" fontFamily="sans-serif" fontWeight={600}>{nd.label.toUpperCase()}</text>
+              <text x={nd.cx} y={Math.max(28, labelY - 12)} textAnchor="middle" fontSize={15} fill={nd.color} fontFamily="sans-serif" fontWeight={700}>{nd.val.toLocaleString()}</text>
+              {/* Conversion % below bar */}
+              {convPct && (
+                <text x={nd.cx} y={CY + 16} textAnchor="middle" fontSize={10} fill="#475569" fontFamily="sans-serif">{convPct}</text>
+              )}
+              {/* Drop-off arrow hint */}
+              {i > 0 && (
+                <text x={nd.cx} y={CY + 28} textAnchor="middle" fontSize={9} fill="#334155" fontFamily="sans-serif">of prev</text>
+              )}
+            </g>
+          );
+        })}
+        {/* Bottom axis line */}
+        <line x1={PAD} y1={CY + 2} x2={VW - PAD} y2={CY + 2} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+      </svg>
+    </div>
   );
 }
 
