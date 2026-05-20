@@ -428,7 +428,7 @@ export default function Dashboard() {
   const momKept      = hasMoM ? (momCurr.apptsKept    || 0) - (momPrev.apptsKept    || 0) : null;
   const momQuotes$   = hasMoM ? (momCurr.quotes       || 0) - (momPrev.quotes       || 0) : null;
 
-  const improvements = personSummary.filter(p => p.quoteRate<0.30 || p.closeRate<0.20 || p.snapRate<0.40);
+  const improvements = personSummary.filter(p => p.quoteRate<0.30 || p.closeRate<0.20 || p.snapRate<0.50);
 
   const COMPARISON_METRICS = ["Enquiries","Snap Cells","Appointments","Appts Kept","Quotes","Orders"];
   const COMPARISON_KEY_MAP = { "Enquiries":"enquiries","Snap Cells":"snapCells","Appointments":"appointments","Appts Kept":"apptsKept","Quotes":"quotes","Orders":"orders" };
@@ -632,9 +632,9 @@ export default function Dashboard() {
             <SectionHeader>Key Performance Indicators</SectionHeader>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))", gap:14, marginBottom:28 }}>
               <KPICard title="Unique Customers"  value={fmtNum(overall.enquiries)}    color="#6366F1" sub="Total enquiries"                        trend={momEnq}     prevValue={momPrev ? (momPrev.enquiries    || 0) : undefined} trendLabel={momLabel} />
-              <KPICard title="Snap Cells"         value={fmtNum(overall.snapCells)}    color="#3B82F6" sub={`${pct(overall.snapRate)} of enquiries`} trend={momSnap$}   prevValue={momPrev ? (momPrev.snapCells    || 0) : undefined} trendLabel={momLabel} target={0.40} />
-              <KPICard title="Appointments"       value={fmtNum(overall.appointments)} color="#06B6D4" sub={`${pct(overall.apptRate)} of enquiries`} trend={momAppt}    prevValue={momPrev ? (momPrev.appointments || 0) : undefined} trendLabel={momLabel} />
-              <KPICard title="Appointments Kept"  value={fmtNum(overall.apptsKept)}    color="#8B5CF6" sub={`${pct(overall.keptRate)} of booked`}    trend={momKept}    prevValue={momPrev ? (momPrev.apptsKept    || 0) : undefined} trendLabel={momLabel} />
+              <KPICard title="Snap Cells"         value={fmtNum(overall.snapCells)}    color="#3B82F6" sub={`${pct(overall.snapRate)} of enquiries`} trend={momSnap$}   prevValue={momPrev ? (momPrev.snapCells    || 0) : undefined} trendLabel={momLabel} target={0.50} />
+              <KPICard title="Appointments"       value={fmtNum(overall.appointments)} color="#06B6D4" sub={`${pct(overall.apptRate)} of enquiries`} trend={momAppt}    prevValue={momPrev ? (momPrev.appointments || 0) : undefined} trendLabel={momLabel} target={0.33} />
+              <KPICard title="Appointments Kept"  value={fmtNum(overall.apptsKept)}    color="#8B5CF6" sub={`${pct(overall.keptRate)} of booked`}    trend={momKept}    prevValue={momPrev ? (momPrev.apptsKept    || 0) : undefined} trendLabel={momLabel} target={0.66} />
               <KPICard title="Outbound Calls"     value={fmtNum(overall.outbound)}     color="#F97316" trend={momOutbound} prevValue={momPrev ? (momPrev.outbound || 0) : undefined} trendLabel={momLabel} />
               <KPICard title="Quotes"             value={fmtNum(overall.quotes)}       color="#10B981" sub={`${pct(overall.quoteRate)} of enquiries`} trend={momQuotes$} prevValue={momPrev ? (momPrev.quotes       || 0) : undefined} trendLabel={momLabel} target={0.30} />
               <KPICard title="Total Orders"       value={fmtNum(overall.orders)}       color="#EC4899" sub={`${pct(overall.closeRate)} order rate`}   trend={momOrders}  prevValue={momPrev ? (momPrev.orders       || 0) : undefined} trendLabel={momLabel} target={0.20} />
@@ -646,7 +646,7 @@ export default function Dashboard() {
               <div style={{ display:"flex", gap:6, alignItems:"stretch", flexWrap:"wrap", marginBottom:20 }}>
                 {[
                   { label:"Unique Customers", value:fmtNum(overall.enquiries),    pct:null,              color:"#6366F1" },
-                  { label:"Snap Cells",        value:fmtNum(overall.snapCells),    pct:overall.snapRate,  color:"#3B82F6", target:0.40 },
+                  { label:"Snap Cells",        value:fmtNum(overall.snapCells),    pct:overall.snapRate,  color:"#3B82F6", target:0.50 },
                   { label:"Appointments",      value:fmtNum(overall.appointments), pct:overall.apptRate,  color:"#06B6D4" },
                   { label:"Appts Kept",        value:fmtNum(overall.apptsKept),    pct:overall.keptRate,  color:"#8B5CF6", fromLabel:"of booked" },
                   { label:"Quotes",            value:fmtNum(overall.quotes),       pct:overall.quoteRate, color:"#10B981", target:0.30 },
@@ -786,7 +786,7 @@ export default function Dashboard() {
           <>
             <SectionHeader>Pipeline Conversion by Month</SectionHeader>
             {[
-              { key:"snapPct",  label:"Snap Cell Rate %", target:40, color:"#3B82F6" },
+              { key:"snapPct",  label:"Snap Cell Rate %", target:50, color:"#3B82F6" },
               { key:"quotePct", label:"Quote Rate %",      target:30, color:"#10B981" },
               { key:"closePct", label:"Order Rate %",      target:20, color:"#F59E0B" },
             ].map(({ key, label, target, color })=>(
@@ -930,7 +930,7 @@ export default function Dashboard() {
             <SectionHeader>Performance vs Targets</SectionHeader>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:20, marginBottom:28 }}>
               {[
-                { key:"snapRate",  label:"Snap Cell Rate", target:0.40, color:"#3B82F6" },
+                { key:"snapRate",  label:"Snap Cell Rate", target:0.50, color:"#3B82F6" },
                 { key:"quoteRate", label:"Quote Rate",      target:0.30, color:"#10B981" },
                 { key:"closeRate", label:"Order Rate",      target:0.20, color:"#F59E0B" },
               ].map(({ key, label, target, color })=>(
