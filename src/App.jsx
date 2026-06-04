@@ -5,14 +5,16 @@ import {
   ResponsiveContainer, ReferenceLine, Cell
 } from "recharts";
 
-// ─── SHEET URLs (one per year tab) ───────────────────────────────────────────
-// On Netlify: requests go to /api/2025 and /api/2026 which are proxied via _redirects
-// On localhost: falls back to direct Google Sheets URL via CORS proxy
+// ─── DATA SOURCE ──────────────────────────────────────────────────────────────
+// One combined "Dashboard" tab on the scraped Google Sheet (all months stacked).
+// The scraper rebuilds that tab on every run, so new months appear automatically.
+// On Netlify: request goes to /api/data which is proxied to the sheet via _redirects (no CORS).
+// On localhost: falls back to the same URL via a CORS proxy.
 const IS_LOCAL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const SHEETS = [
-  { year: 2025, localUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=2051502240&single=true&output=csv", prodUrl: "/api/2025" },
-  { year: 2026, localUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSzOVZQfpc4PnZFWr8HuUMUz-WfRcR7zpiOybaY3zPw3biGsPcId8LfBK598yYhXg/pub?gid=268453733&single=true&output=csv",  prodUrl: "/api/2026" },
-];
+const SHEET_ID  = "1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw";
+const GVIZ_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Dashboard`;
+const DATA_PROD_URL  = "/api/data";   // Netlify _redirects -> GVIZ_URL
+const DATA_LOCAL_URL = GVIZ_URL;      // localhost -> via CORS proxy
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -20,107 +22,108 @@ const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const MONTH_ORDER = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── CSV PARSER ───────────────────────────────────────────────────────────────
-// Year is passed in — no guessing needed since each tab = one year
-function parseCSV(text, year) {
-  const lines = text.split(/\r?\n/);
-  const rows  = lines.map(l => {
-    const cols = [];
-    let cur = "", inQ = false;
-    for (let i = 0; i < l.length; i++) {
-      if (l[i] === '"') { inQ = !inQ; }
-      else if (l[i] === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
-      else cur += l[i];
-    }
-    cols.push(cur.trim());
-    return cols;
-  });
+// Flat format: one header row + one row per person per month.
+// Columns: Sales Person | Month ("June 2026") | Unique Customers | ... | Snap Cells | Updated
+function splitCSVLine(l) {
+  const cols = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < l.length; i++) {
+    const ch = l[i];
+    if (ch === '"') {
+      if (inQ && l[i + 1] === '"') { cur += '"'; i++; }   // escaped quote
+      else inQ = !inQ;
+    } else if (ch === "," && !inQ) { cols.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  cols.push(cur);
+  return cols.map(c => c.trim());
+}
 
-  const data    = [];
-  let curMonth  = null;
-  let colMap    = null;
-  let stopped   = false;
+function parseFlat(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+  if (!lines.length) return [];
 
-  for (const cols of rows) {
-    if (stopped) continue;
+  // Find the header row (the one that names "Sales Person")
+  let hIdx = lines.findIndex(l => /sales\s*person/i.test(l));
+  if (hIdx < 0) hIdx = 0;
+  const header = splitCSVLine(lines[hIdx]).map(h => h.toLowerCase());
+  const col = (re) => header.findIndex(h => re.test(h));
 
-    const first    = String(cols[0] || "").trim();
-    const firstLow = first.toLowerCase();
+  const idx = {
+    person:       col(/sales\s*person/),
+    month:        col(/^month$/),
+    enquiries:    col(/unique\s*customer/),     // base for all rates
+    snapCells:    col(/snap\s*cell/),
+    appointments: col(/^appointments?$/),
+    apptsKept:    col(/appts?\s*kept|appointments?\s*kept/),
+    quotes:       col(/^quotes?$/),
+    orders:       col(/total\s*orders/),
+    outbound:     col(/outbound/),              // not in scraped data yet -> 0
+  };
 
-    // Stop at summary/averages sections
-    if (/^(averages|daily averages|targets for)/i.test(firstLow)) {
-      stopped = true; continue;
-    }
+  const num = (cols, i) => {
+    if (i == null || i < 0) return 0;
+    const v = parseFloat(String(cols[i] || "0").replace(/[^0-9.-]/g, ""));
+    return isNaN(v) ? 0 : v;
+  };
 
-    // Skip sub-period rows like "August 18-24" but NOT year-suffixed headers like "January 2026"
-    if (/^[a-zA-Z]+ \d{1,2}/.test(first) && !/^[a-zA-Z]+ \d{4}/.test(first)) continue;
+  const out = [];
+  for (let r = hIdx + 1; r < lines.length; r++) {
+    const cols   = splitCSVLine(lines[r]);
+    const person = (cols[idx.person] || "").trim();
+    if (!person) continue;
 
-    // Detect month header — match "January", "January 2026", "Jan", "Jan 2026", "March -" etc.
-    const cleanFirst = firstLow.replace(/\s*-\s*$/, "").replace(/\s+\d{4}$/, "").trim();
-    const mIdx = MONTH_NAMES.findIndex(mn =>
-      cleanFirst === mn.toLowerCase() ||
-      cleanFirst === mn.toLowerCase().slice(0, 3)
+    // Parse "June 2026" -> short month + year
+    const monthLabel = (cols[idx.month] || "").trim();
+    const parts = monthLabel.split(/\s+/);
+    const mName = parts[0] || "";
+    const year  = parseInt(parts[1], 10) || new Date().getFullYear();
+    const mi = MONTH_NAMES.findIndex(mn =>
+      mn.toLowerCase() === mName.toLowerCase() ||
+      mn.toLowerCase().slice(0, 3) === mName.toLowerCase().slice(0, 3)
     );
-    if (mIdx >= 0) {
-      curMonth = MONTH_SHORT[mIdx];
-      colMap   = null;
-      continue;
-    }
+    const monthShort = mi >= 0 ? MONTH_SHORT[mi] : mName.slice(0, 3);
 
-    // Detect column header row
-    if (cols.some(c => /sales\s*person/i.test(String(c)))) {
-      colMap = {};
-      cols.forEach((c, i) => {
-        const s = String(c).toLowerCase().trim();
-        if (/unique.*customer|enquir/i.test(s))                     colMap.enquiries    = i;
-        else if (/snap\s*cell/i.test(s))                            colMap.snapCells    = i;
-        else if (/appointment.*kept|appointments\s*kept/i.test(s))  colMap.apptsKept    = i;
-        else if (/^appointments?\s*$/i.test(s))                     colMap.appointments = i;
-        else if (/outbound/i.test(s))                               colMap.outbound     = i;
-        else if (/^quotes?\s*$/i.test(s))                           colMap.quotes       = i;
-        else if (/total\s*orders/i.test(s))                         colMap.orders       = i;
-        else if (/sales\s*person/i.test(s))                         colMap.person       = i;
-      });
-      continue;
-    }
-
-    if (!curMonth || !colMap) continue;
-
-    // Skip total/summary rows
-    if (/^(total|q[1-4]|averages|daily|pipeline|targets|setter|closer)/i.test(firstLow) || !first) continue;
-
-    const n = (i) => {
-      if (i == null) return 0;
-      const v = parseFloat(String(cols[i] || "0").replace(/[^0-9.-]/g, ""));
-      return isNaN(v) ? 0 : v;
-    };
-
-    const enqVal = n(colMap.enquiries);
-    // Skip decimal/zero enquiry rows (averages leaking through)
-    if (enqVal === 0 || enqVal !== Math.round(enqVal)) continue;
-
-    data.push({
+    out.push({
       year,
-      month:     curMonth,
-      yearMonth: `${curMonth} ${year}`,
-      person:    first,
-      enquiries: enqVal,
-      snapCells:    n(colMap.snapCells),
-      appointments: colMap.appointments != null ? n(colMap.appointments) : 0,
-      apptsKept:    colMap.apptsKept    != null ? n(colMap.apptsKept)    : 0,
-      outbound:     n(colMap.outbound),
-      quotes:       n(colMap.quotes),
-      orders:       n(colMap.orders),
+      month:     monthShort,
+      yearMonth: `${monthShort} ${year}`,
+      person,
+      enquiries:    num(cols, idx.enquiries),
+      snapCells:    num(cols, idx.snapCells),
+      appointments: num(cols, idx.appointments),
+      apptsKept:    num(cols, idx.apptsKept),
+      outbound:     num(cols, idx.outbound),
+      quotes:       num(cols, idx.quotes),
+      orders:       num(cols, idx.orders),
     });
   }
-  return data;
+  return out;
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-const PERSON_COLORS = {
+// Known short names keep their original colours; any other name (full scraped
+// names like "Cameron Kidd") gets a consistent colour from the palette below.
+const KNOWN_COLORS = {
   Cameron: "#3B82F6", Dan: "#10B981", Jonny: "#F59E0B",
   Kat: "#EC4899", Tom: "#8B5CF6", Chris: "#06B6D4",
   Adil: "#EF4444", Gustav: "#F97316"
 };
+const COLOR_PALETTE = [
+  "#3B82F6","#10B981","#F59E0B","#EC4899","#8B5CF6","#06B6D4","#EF4444","#F97316",
+  "#6366F1","#14B8A6","#A855F7","#EAB308","#0EA5E9","#F43F5E","#22C55E","#D946EF",
+  "#84CC16","#FB7185","#2DD4BF","#C084FC","#FBBF24","#60A5FA","#4ADE80","#FB923C"
+];
+// Proxy so PERSON_COLORS[anyName] always returns a real colour.
+const PERSON_COLORS = new Proxy({}, {
+  get(_, name) {
+    if (typeof name !== "string") return undefined;
+    if (KNOWN_COLORS[name]) return KNOWN_COLORS[name];
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return COLOR_PALETTE[h % COLOR_PALETTE.length];
+  }
+});
 const YEAR_COLORS = { 2025: "#6366F1", 2026: "#10B981" };
 
 const pct    = (v) => v == null || isNaN(+v) ? '0.0%' : `${(+v * 100).toFixed(1)}%`;
@@ -307,31 +310,26 @@ export default function Dashboard() {
   const toggleYear   = y => setSelectedYears(p  => p.includes(y) ? p.filter(x=>x!==y) : [...p,y]);
   const toggleMonth  = m => setSelectedMonths(p => p.includes(m) ? p.filter(x=>x!==m) : [...p,m]);
 
-  // ── Fetch both tabs ──────────────────────────────────────────────────────
+  // ── Fetch the combined Dashboard tab ──────────────────────────────────────
   const fetchData = async () => {
     setLoading(true); setError(null);
     try {
-      const results = await Promise.all(
-        SHEETS.map(async ({ year, localUrl, prodUrl }) => {
-          let text = null;
-          if (IS_LOCAL) {
-            // localhost: use CORS proxy
-            const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(localUrl + "&t=" + Date.now())}`;
-            const res = await fetch(proxied);
-            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${year} data`);
-            text = await res.text();
-          } else {
-            // Netlify: use redirect proxy (no CORS issue)
-            const res = await fetch(`${prodUrl}?t=${Date.now()}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${year} data`);
-            text = await res.text();
-          }
-          const parsed = parseCSV(text, year);
-          if (parsed.length === 0) throw new Error(`No data parsed for ${year} — check the sheet is published`);
-          return parsed;
-        })
-      );
-      setRawData(results.flat());
+      let text;
+      if (IS_LOCAL) {
+        // localhost: use CORS proxy
+        const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(DATA_LOCAL_URL + "&t=" + Date.now())}`;
+        const res = await fetch(proxied);
+        if (!res.ok) throw new Error(`HTTP ${res.status} fetching data`);
+        text = await res.text();
+      } else {
+        // Netlify: use redirect proxy (no CORS issue)
+        const res = await fetch(`${DATA_PROD_URL}?t=${Date.now()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status} fetching data`);
+        text = await res.text();
+      }
+      const parsed = parseFlat(text);
+      if (parsed.length === 0) throw new Error("No data parsed — check the sheet is shared (Anyone with the link → Viewer) and the Dashboard tab exists");
+      setRawData(parsed);
       setLastRefreshed(new Date().toLocaleTimeString());
     } catch(e) {
       setError(e.message);
@@ -458,7 +456,7 @@ export default function Dashboard() {
     <div style={{ minHeight:"100vh", background:"#0B1120", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ width:48, height:48, border:"3px solid rgba(99,102,241,0.2)", borderTop:"3px solid #6366F1", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-      <div style={{ color:"#64748B", fontSize:14 }}>Loading 2025 & 2026 data…</div>
+      <div style={{ color:"#64748B", fontSize:14 }}>Loading dashboard data…</div>
     </div>
   );
 
@@ -480,12 +478,12 @@ export default function Dashboard() {
 
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
             <div>
-              <div style={{ fontSize:11, letterSpacing:"0.2em", color:"#6366F1", fontWeight:700, textTransform:"uppercase", marginBottom:4 }}>CRM Analytics · 2025–2026</div>
+              <div style={{ fontSize:11, letterSpacing:"0.2em", color:"#6366F1", fontWeight:700, textTransform:"uppercase", marginBottom:4 }}>CRM Analytics · {allYears.length ? (allYears.length > 1 ? `${allYears[0]}–${allYears[allYears.length-1]}` : String(allYears[0])) : "Live"}</div>
               <h1 style={{ fontSize:26, fontWeight:900, margin:0, letterSpacing:"-0.02em", color:"#F8FAFC" }}>Customer Journey KPI Dashboard</h1>
               <p style={{ margin:"5px 0 0", color:"#64748B", fontSize:13 }}>
                 Live · Refreshed: <span style={{ color:"#94A3B8" }}>{lastRefreshed}</span>
-                {" · "}<span style={{ color:"#6366F1" }}>2025: {rawData.filter(d=>d.year===2025).length} records</span>
-                {" · "}<span style={{ color:"#10B981" }}>2026: {rawData.filter(d=>d.year===2026).length} records</span>
+                {" · "}<span style={{ color:"#10B981" }}>{rawData.length} records</span>
+                {allMonths.length > 0 && <span style={{ color:"#475569" }}>{" · "}{allMonths.length} month{allMonths.length>1?"s":""}</span>}
               </p>
             </div>
             <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
