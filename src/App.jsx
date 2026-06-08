@@ -315,16 +315,32 @@ export default function App() {
   // Build the ordered list of periods for the current granularity.
   const periods = useMemo(() => {
     if (gran === "month") {
-      const map = new Map();
+      // Prefer daily data for any month that has it (keeps Day/Week/Month consistent);
+      // fall back to the monthly tab for months with no daily coverage yet.
+      const dailyByMonth = new Map();
+      daily.forEach(r => {
+        if (!inTeam(r.person)) return;
+        const key = `${r.dateObj.getFullYear()}-${r.dateObj.getMonth()}`;
+        if (!dailyByMonth.has(key)) dailyByMonth.set(key, []);
+        dailyByMonth.get(key).push(r);
+      });
+      const monthlyByMonth = new Map();
       monthly.forEach(r => {
         if (!inTeam(r.person)) return;
         const key = `${r.year}-${r.monthIdx}`;
-        if (!map.has(key)) map.set(key, { key, year:r.year, monthIdx:r.monthIdx, rows:[] });
-        map.get(key).rows.push(r);
+        if (!monthlyByMonth.has(key)) monthlyByMonth.set(key, []);
+        monthlyByMonth.get(key).push(r);
       });
-      return [...map.values()]
+      const keys = new Set([...monthlyByMonth.keys(), ...dailyByMonth.keys()]);
+      return [...keys].map(key => {
+        const parts = key.split("-");
+        const year = +parts[0], monthIdx = +parts[1];
+        const fromDaily = dailyByMonth.has(key);
+        const rows = fromDaily ? dailyByMonth.get(key) : monthlyByMonth.get(key);
+        return { key, year, monthIdx, rows, fromDaily };
+      })
         .sort((a,b) => a.year!==b.year ? a.year-b.year : a.monthIdx-b.monthIdx)
-        .map(p => ({ ...p, label:`${MONTH_NAMES[p.monthIdx]} ${p.year}`, sub:null, axis:`${MONTH_SHORT[p.monthIdx]} ${String(p.year).slice(2)}` }));
+        .map(p => ({ ...p, label:`${MONTH_NAMES[p.monthIdx]} ${p.year}`, sub: p.fromDaily ? null : "from monthly totals", axis:`${MONTH_SHORT[p.monthIdx]} ${String(p.year).slice(2)}` }));
     }
     // day / week from daily rows
     const rows = daily.filter(r => inTeam(r.person));
