@@ -219,7 +219,10 @@ function TeamDropdown({ allPeople, mode, picked, setMode, setPicked }) {
         <div style={{ position:"absolute", top:"110%", right:0, zIndex:50, width:260, maxHeight:360, overflowY:"auto",
           background:"#0F1729", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:8, boxShadow:"0 18px 50px rgba(0,0,0,0.5)" }}>
           <label style={rowStyle(allOn)}>
-            <input type="checkbox" checked={allOn} onChange={() => { setMode("all"); setPicked([]); }} />
+            <input type="checkbox" checked={allOn} onChange={() => {
+              if (mode === "all") { setMode("custom"); setPicked([]); }  // clear -> blank slate to pick individuals
+              else { setMode("all"); setPicked([]); }                    // re-select everyone
+            }} />
             <span style={{ fontWeight:700 }}>All staff</span>
           </label>
           <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"6px 4px" }} />
@@ -509,7 +512,11 @@ export default function App() {
         )}
 
         {!loading && !m && !noDaily && (
-          <div style={{ textAlign:"center", color:"#64748B", padding:"60px 0" }}>No data to display.</div>
+          <div style={{ textAlign:"center", color:"#64748B", padding:"60px 0" }}>
+            {mode === "custom" && picked.length === 0
+              ? "No staff selected — pick people from the Team dropdown (top right)."
+              : "No data to display."}
+          </div>
         )}
       </div>
     </div>
