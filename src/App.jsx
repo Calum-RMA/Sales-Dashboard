@@ -26,6 +26,16 @@ const isStaff = (name) => name && !EXCLUDE.includes(name.trim().toLowerCase());
 
 // Conversion targets (rates).
 const TARGETS = { snap:0.50, appt:0.33, kept:0.66, quote:0.30, order:0.20 };
+const CONNECTED_PER_DAY = 40;   // connected-calls target, per sales rep per working day
+
+// Sales reps we actively monitor — targets apply to these. Matched by first name so it works
+// whether the sheet stores "Kat Durham" or "Katherine Durham", "Kaz"/"Kazeem", "Dan"/"Daniel".
+const SALES_FIRST      = ["kazeem","kaz","roger","kat","katherine","cameron","cam","daniel","dan","sean"];
+const PURCHASING_FIRST = ["richardo","ricardo","gordon","barry","ahmed","sean"];   // Sean is both
+const firstName   = (name) => (name||"").toLowerCase().trim().split(/\s+/)[0];
+const isSalesRep  = (name) => SALES_FIRST.includes(firstName(name));
+const isPurchaser = (name) => PURCHASING_FIRST.includes(firstName(name));
+const isWeekday   = (d) => { const g = d.getDay(); return g >= 1 && g <= 5; };
 
 /* ─── COLOURS ─────────────────────────────────────────────────────────────────*/
 const KNOWN_COLORS = { Cameron:"#3B82F6", Dan:"#10B981", Kat:"#EC4899", Tom:"#8B5CF6", Adil:"#EF4444", Gustav:"#F97316" };
@@ -77,6 +87,7 @@ function makeRowParser(headerLine) {
     orders:       col(/total\s*orders/),
     outbound:     col(/outbound/),
     inbound:      col(/inbound/),
+    connected:    col(/connected/),
   };
   const num = (cols, i) => {
     if (i == null || i < 0) return 0;
@@ -86,7 +97,7 @@ function makeRowParser(headerLine) {
   return { idx, num };
 }
 
-const METRIC_KEYS = ["enquiries","snapCells","appointments","apptsKept","quotes","orders","outbound","inbound"];
+const METRIC_KEYS = ["enquiries","snapCells","appointments","apptsKept","quotes","orders","outbound","inbound","connected"];
 
 function parseMonthly(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
@@ -138,9 +149,9 @@ function calcMetrics(rows) {
   const s = (k) => rows.reduce((a, r) => a + (+r[k] || 0), 0);
   const enq=s("enquiries"), snap=s("snapCells"), appt=s("appointments"),
         kept=s("apptsKept"), quot=s("quotes"), ord=s("orders"),
-        out=s("outbound"), inb=s("inbound");
+        out=s("outbound"), inb=s("inbound"), conn=s("connected");
   return {
-    enquiries:enq, snapCells:snap, appointments:appt, apptsKept:kept, quotes:quot, orders:ord, outbound:out, inbound:inb,
+    enquiries:enq, snapCells:snap, appointments:appt, apptsKept:kept, quotes:quot, orders:ord, outbound:out, inbound:inb, connected:conn,
     snapRate:  enq ? snap/enq : 0,
     apptRate:  enq ? appt/enq : 0,
     keptRate:  appt? kept/appt: 0,
@@ -188,7 +199,7 @@ function Stepper({ label, sub, onPrev, onNext, canPrev, canNext }) {
   );
 }
 
-function TeamDropdown({ allPeople, mode, picked, setMode, setPicked }) {
+function TeamDropdown({ allPeople, salesPeople, purchasingPeople, mode, picked, setMode, setPicked }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -204,8 +215,18 @@ function TeamDropdown({ allPeople, mode, picked, setMode, setPicked }) {
     if (next.length === allPeople.length) { setMode("all"); setPicked([]); }
     else setPicked(next);
   };
-  const count = allOn ? allPeople.length : picked.length;
-  const headLabel = allOn ? "All staff" : `${count} selected`;
+  const sameSet = (a,b) => a.length === b.length && a.length > 0 && a.every(x => b.includes(x));
+  const selectAll  = () => { setMode("all"); setPicked([]); };
+  const selectGroup = (group) => { setMode("custom"); setPicked(group.slice()); };
+  const headLabel = allOn ? "All staff"
+    : picked.length === 0 ? "None selected"
+    : sameSet(picked, salesPeople) ? "Sales team"
+    : sameSet(picked, purchasingPeople) ? "Purchasing"
+    : `${picked.length} selected`;
+  const presetStyle = (on) => ({
+    flex:1, textAlign:"center", padding:"7px 6px", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:700,
+    color: on ? "#fff" : "#94A3B8", background: on ? "#4F6EF7" : "rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)"
+  });
   return (
     <div ref={ref} style={{ position:"relative" }}>
       <button onClick={() => setOpen(o=>!o)} style={{
@@ -216,21 +237,20 @@ function TeamDropdown({ allPeople, mode, picked, setMode, setPicked }) {
         <span style={{ color:"#64748B", fontSize:11 }}>▾</span>
       </button>
       {open && (
-        <div style={{ position:"absolute", top:"110%", right:0, zIndex:50, width:260, maxHeight:360, overflowY:"auto",
+        <div style={{ position:"absolute", top:"110%", right:0, zIndex:50, width:260, maxHeight:380, overflowY:"auto",
           background:"#0F1729", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:8, boxShadow:"0 18px 50px rgba(0,0,0,0.5)" }}>
-          <label style={rowStyle(allOn)}>
-            <input type="checkbox" checked={allOn} onChange={() => {
-              if (mode === "all") { setMode("custom"); setPicked([]); }  // clear -> blank slate to pick individuals
-              else { setMode("all"); setPicked([]); }                    // re-select everyone
-            }} />
-            <span style={{ fontWeight:700 }}>All staff</span>
-          </label>
+          <div style={{ display:"flex", gap:6, marginBottom:4 }}>
+            <div onClick={selectAll} style={presetStyle(allOn)}>All staff</div>
+            <div onClick={() => selectGroup(salesPeople)} style={presetStyle(!allOn && sameSet(picked, salesPeople))}>Sales</div>
+            <div onClick={() => selectGroup(purchasingPeople)} style={presetStyle(!allOn && sameSet(picked, purchasingPeople))}>Purchasing</div>
+          </div>
           <div style={{ height:1, background:"rgba(255,255,255,0.08)", margin:"6px 4px" }} />
           {allPeople.map(p => (
             <label key={p} style={rowStyle(isChecked(p))}>
               <input type="checkbox" checked={isChecked(p)} onChange={() => toggle(p)} />
               <span style={{ width:8, height:8, borderRadius:8, background:PERSON_COLORS[p], display:"inline-block" }} />
               <span>{p}</span>
+              {isSalesRep(p) && <span style={{ marginLeft:"auto", color:"#64748B", fontSize:10 }}>sales</span>}
             </label>
           ))}
         </div>
@@ -253,14 +273,16 @@ function Delta({ curr, prev, label }) {
   return <span style={{ color:c, fontSize:12, fontWeight:700 }}>{arrow} {cp} <span style={{ color:"#64748B", fontWeight:500 }}>{label}</span></span>;
 }
 
-function KPICard({ title, value, sub, color, target, curr, prev, prevLabel, lastYear, lastYearLabel }) {
+function KPICard({ title, value, sub, color, target, targetText, curr, prev, prevLabel, lastYear, lastYearLabel }) {
   return (
     <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:16, padding:"18px 22px", position:"relative", overflow:"hidden" }}>
       <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:color }} />
       <div style={{ color:"#94A3B8", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{title}</div>
       <div style={{ fontSize:30, fontWeight:800, color:"#F1F5F9", letterSpacing:"-0.02em" }}>{value}</div>
       {sub && <div style={{ color:"#64748B", fontSize:12, marginTop:3 }}>{sub}</div>}
-      {target != null && <div style={{ color:"#64748B", fontSize:11, marginTop:6 }}>Target: {pct(target)}</div>}
+      {targetText
+        ? <div style={{ color:"#64748B", fontSize:11, marginTop:6 }}>Target: {targetText}</div>
+        : target != null && <div style={{ color:"#64748B", fontSize:11, marginTop:6 }}>Target: {pct(target)}</div>}
       <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:3 }}>
         {curr != null && <Delta curr={curr} prev={prev} label={prevLabel} />}
         {lastYear != null && <Delta curr={curr} prev={lastYear} label={lastYearLabel} />}
@@ -309,6 +331,11 @@ export default function App() {
     daily.forEach(r => s.add(r.person));
     return [...s].filter(isStaff).sort();
   }, [monthly, daily]);
+
+  // Monitored groups. Sales = the reps we track targets for; Purchasing = the rest (no
+  // targets yet) — refine the membership once exact names are confirmed.
+  const salesPeople      = useMemo(() => allPeople.filter(isSalesRep),  [allPeople]);
+  const purchasingPeople = useMemo(() => allPeople.filter(isPurchaser), [allPeople]);
 
   const inTeam = (p) => mode === "all" || picked.includes(p);
 
@@ -383,6 +410,54 @@ export default function App() {
     return [...map.values()].sort((a,b)=> b.orders-a.orders || b.enquiries-a.enquiries);
   }, [current]);
 
+  // Working days (Mon–Fri) covered by the current period — used to scale the connected-calls
+  // count target (40 per rep per working day). Weekend-only days carry no connected target.
+  const workingDays = useMemo(() => {
+    if (!current) return 0;
+    const s = new Set();
+    current.rows.forEach(r => { if (r.dateObj && isWeekday(r.dateObj)) s.add(r.dateISO); });
+    return s.size;
+  }, [current]);
+  const activePeople = current ? new Set(current.rows.map(r => r.person)).size : 0;
+  const connTargetText = `${CONNECTED_PER_DAY}/day per rep`;
+  const connSub = (x) => {
+    const denom = activePeople * Math.max(workingDays, 1);
+    return `${denom ? Math.round(x.connected/denom) : 0}/day per rep avg`;
+  };
+
+  // Areas for improvement: for each monitored sales rep in the current selection, flag any
+  // target they're under for this period (rates vs target %, connected vs 40 × working days).
+  const hasSalesInView = current ? current.rows.some(r => isSalesRep(r.person)) : false;
+  const improvements = useMemo(() => {
+    if (!current) return [];
+    const reps = new Map();
+    current.rows.forEach(r => {
+      if (!isSalesRep(r.person)) return;
+      if (!reps.has(r.person)) reps.set(r.person, { person:r.person, ...Object.fromEntries(METRIC_KEYS.map(k=>[k,0])) });
+      const o = reps.get(r.person); METRIC_KEYS.forEach(k => o[k] += (+r[k]||0));
+    });
+    const connTarget = CONNECTED_PER_DAY * workingDays;
+    const list = [];
+    reps.forEach(o => {
+      const rate = (n,d) => d ? n/d : 0;
+      const checks = [
+        { label:"Snap rate",  actual:rate(o.snapCells,o.enquiries),   target:TARGETS.snap,  pctType:true },
+        { label:"Appt rate",  actual:rate(o.appointments,o.enquiries),target:TARGETS.appt,  pctType:true },
+        { label:"Kept rate",  actual:rate(o.apptsKept,o.appointments),target:TARGETS.kept,  pctType:true },
+        { label:"Quote rate", actual:rate(o.quotes,o.enquiries),      target:TARGETS.quote, pctType:true },
+        { label:"Order rate", actual:rate(o.orders,o.enquiries),      target:TARGETS.order, pctType:true },
+      ];
+      if (connTarget > 0) checks.push({ label:"Connected calls", actual:o.connected, target:connTarget, pctType:false });
+      const flags = checks.filter(c => c.actual < c.target).map(c => ({
+        label:c.label,
+        actual: c.pctType ? pct(c.actual) : fmtNum(c.actual),
+        target: c.pctType ? pct(c.target) : fmtNum(c.target),
+      }));
+      if (flags.length) list.push({ person:o.person, flags });
+    });
+    return list.sort((a,b) => b.flags.length - a.flags.length);
+  }, [current, workingDays]);
+
   // Trend across the last N periods for the selected metric.
   const TREND_N = gran === "day" ? 14 : gran === "week" ? 8 : 12;
   const trendData = useMemo(() => {
@@ -399,10 +474,11 @@ export default function App() {
     { key:"orders",      title:"Total Orders",     color:"#EC4899", num:(x)=>fmtNum(x.orders),      sub:(x)=>`${pct(x.orderRate)} order rate`,  target:TARGETS.order },
     { key:"outbound",    title:"Outbound Calls",   color:"#F97316", num:(x)=>fmtNum(x.outbound) },
     { key:"inbound",     title:"Inbound Calls",    color:"#14B8A6", num:(x)=>fmtNum(x.inbound) },
+    { key:"connected",   title:"Connected Calls",  color:"#F59E0B", num:(x)=>fmtNum(x.connected), sub:connSub, targetText:connTargetText },
   ];
   const METRIC_TABS = [
     ["enquiries","Customers"],["snapCells","Snap Cells"],["appointments","Appts"],
-    ["quotes","Quotes"],["orders","Orders"],["outbound","Outbound"],["inbound","Inbound"],
+    ["quotes","Quotes"],["orders","Orders"],["outbound","Outbound"],["inbound","Inbound"],["connected","Connected"],
   ];
 
   const noDaily = (gran === "day" || gran === "week") && (!dailyOk || daily.length === 0);
@@ -437,7 +513,7 @@ export default function App() {
             )}
             {idx < periods.length - 1 && <button onClick={()=>setPeriodIdx(null)} style={{ background:"none", border:"none", color:"#6366F1", fontSize:12, fontWeight:700, cursor:"pointer" }}>Jump to latest →</button>}
           </div>
-          <TeamDropdown allPeople={allPeople} mode={mode} picked={picked} setMode={setMode} setPicked={setPicked} />
+          <TeamDropdown allPeople={allPeople} salesPeople={salesPeople} purchasingPeople={purchasingPeople} mode={mode} picked={picked} setMode={setMode} setPicked={setPicked} />
         </div>
 
         {/* No-daily hint */}
@@ -455,11 +531,43 @@ export default function App() {
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:14, marginTop:18 }}>
               {KPI_DEFS.map(def => (
                 <KPICard key={def.key} title={def.title} color={def.color}
-                  value={def.num(m)} sub={def.sub ? def.sub(m) : null} target={def.target}
+                  value={def.num(m)} sub={def.sub ? def.sub(m) : null} target={def.target} targetText={def.targetText}
                   curr={m[def.key]} prev={mp ? mp[def.key] : null} prevLabel={prevLabel}
                   lastYear={my ? my[def.key] : null} lastYearLabel="YoY" />
               ))}
             </div>
+
+            {/* Areas for improvement */}
+            {hasSalesInView && (
+              <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:18, padding:"20px 22px", marginTop:22 }}>
+                <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:8, marginBottom:14 }}>
+                  <div style={{ color:"#F1F5F9", fontSize:16, fontWeight:800 }}>Areas for improvement · {current.label}</div>
+                  <div style={{ color:"#64748B", fontSize:12 }}>
+                    vs targets{workingDays > 0 ? ` · connected = ${CONNECTED_PER_DAY}/day × ${workingDays} working day${workingDays===1?"":"s"} = ${fmtNum(CONNECTED_PER_DAY*workingDays)}` : ""}
+                  </div>
+                </div>
+                {improvements.length === 0 ? (
+                  <div style={{ color:"#34D399", fontSize:14, fontWeight:600 }}>All monitored sales reps are meeting their targets for this period. 🎉</div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    {improvements.map(r => (
+                      <div key={r.person} style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", padding:"10px 12px", background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.18)", borderRadius:12 }}>
+                        <span style={{ display:"flex", alignItems:"center", gap:8, minWidth:150, color:"#F1F5F9", fontWeight:700, fontSize:14 }}>
+                          <span style={{ width:9, height:9, borderRadius:9, background:PERSON_COLORS[r.person], display:"inline-block" }} />{r.person}
+                        </span>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                          {r.flags.map(f => (
+                            <span key={f.label} style={{ background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.3)", color:"#FCA5A5", borderRadius:8, padding:"4px 9px", fontSize:12, fontWeight:600 }}>
+                              {f.label}: {f.actual} <span style={{ color:"#94A3B8", fontWeight:500 }}>/ {f.target}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Trend chart */}
             <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:18, padding:"20px 22px", marginTop:22 }}>
@@ -500,7 +608,7 @@ export default function App() {
                       <th style={{ padding:"8px 10px" }}>Customers</th><th style={{ padding:"8px 10px" }}>Snap</th>
                       <th style={{ padding:"8px 10px" }}>Appts</th><th style={{ padding:"8px 10px" }}>Kept</th>
                       <th style={{ padding:"8px 10px" }}>Quotes</th><th style={{ padding:"8px 10px" }}>Orders</th>
-                      <th style={{ padding:"8px 10px" }}>Outbound</th><th style={{ padding:"8px 10px" }}>Inbound</th>
+                      <th style={{ padding:"8px 10px" }}>Outbound</th><th style={{ padding:"8px 10px" }}>Inbound</th><th style={{ padding:"8px 10px" }}>Connected</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -517,9 +625,10 @@ export default function App() {
                         <td style={{ padding:"9px 10px", color:"#F1F5F9", fontWeight:700 }}>{fmtNum(p.orders)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.outbound)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.inbound)}</td>
+                        <td style={{ padding:"9px 10px", color:"#FBBF24", fontWeight:700 }}>{fmtNum(p.connected)}</td>
                       </tr>
                     ))}
-                    {perPerson.length === 0 && <tr><td colSpan={9} style={{ padding:"18px", textAlign:"center", color:"#64748B" }}>No data for this selection.</td></tr>}
+                    {perPerson.length === 0 && <tr><td colSpan={10} style={{ padding:"18px", textAlign:"center", color:"#64748B" }}>No data for this selection.</td></tr>}
                   </tbody>
                 </table>
               </div>
