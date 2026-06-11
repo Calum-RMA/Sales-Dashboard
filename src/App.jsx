@@ -191,6 +191,7 @@ function Segmented({ options, value, onChange }) {
         <button key={o.value} onClick={() => onChange(o.value)} style={{
           background: value===o.value ? "#ed2624" : "transparent",
           color: value===o.value ? "#fff" : "#94A3B8",
+          boxShadow: value===o.value ? "0 0 16px rgba(237,38,36,0.5)" : "none",
           border:"none", borderRadius:9, padding:"7px 16px", fontSize:13, fontWeight:700, cursor:"pointer", transition:"all .15s"
         }}>{o.label}</button>
       ))}
@@ -291,17 +292,20 @@ function Delta({ curr, prev, label }) {
 
 function KPICard({ title, value, sub, color, target, targetText, curr, prev, prevLabel, lastYear, lastYearLabel }) {
   return (
-    <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:16, padding:"18px 22px", position:"relative", overflow:"hidden" }}>
-      <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:color }} />
-      <div style={{ color:"#94A3B8", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{title}</div>
-      <div style={{ fontSize:30, fontWeight:800, color:"#F1F5F9", letterSpacing:"-0.02em" }}>{value}</div>
-      {sub && <div style={{ color:"#64748B", fontSize:12, marginTop:3 }}>{sub}</div>}
-      {targetText
-        ? <div style={{ color:"#64748B", fontSize:11, marginTop:6 }}>Target: {targetText}</div>
-        : target != null && <div style={{ color:"#64748B", fontSize:11, marginTop:6 }}>Target: {pct(target)}</div>}
-      <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:3 }}>
-        {curr != null && <Delta curr={curr} prev={prev} label={prevLabel} />}
-        {lastYear != null && <Delta curr={curr} prev={lastYear} label={lastYearLabel} />}
+    <div style={{ background:`linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025))`, border:"1px solid rgba(255,255,255,0.10)", borderRadius:16, padding:"18px 22px", position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", inset:0, background:`radial-gradient(360px 150px at 0% 0%, ${color}22, transparent 60%)`, pointerEvents:"none" }} />
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:4, background:color, boxShadow:`0 0 14px ${color}99` }} />
+      <div style={{ position:"relative" }}>
+        <div style={{ color:"#a9aeb6", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{title}</div>
+        <div style={{ fontSize:30, fontWeight:800, color:"#ffffff", letterSpacing:"-0.02em" }}>{value}</div>
+        {sub && <div style={{ color:"#8a8f97", fontSize:12, marginTop:3 }}>{sub}</div>}
+        {targetText
+          ? <div style={{ color:"#8a8f97", fontSize:11, marginTop:6 }}>Target: {targetText}</div>
+          : target != null && <div style={{ color:"#8a8f97", fontSize:11, marginTop:6 }}>Target: {pct(target)}</div>}
+        <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:3 }}>
+          {curr != null && <Delta curr={curr} prev={prev} label={prevLabel} />}
+          {lastYear != null && <Delta curr={curr} prev={lastYear} label={lastYearLabel} />}
+        </div>
       </div>
     </div>
   );
@@ -500,9 +504,37 @@ export default function App() {
   const noDaily = (gran === "day" || gran === "week") && (!dailyOk || daily.length === 0);
 
   return (
-    <div style={{ minHeight:"100vh", background:"radial-gradient(1000px 560px at 84% -12%, rgba(0,79,138,0.34), transparent 60%), radial-gradient(820px 520px at 2% 116%, rgba(237,38,36,0.16), transparent 58%), linear-gradient(180deg, #23262b, #15171b)", color:RMA.inkDim, fontFamily:"'Archivo', system-ui, -apple-system, sans-serif", padding:"28px 28px 60px" }}>
+    <div style={{ minHeight:"100vh", position:"relative", overflow:"hidden", background:"radial-gradient(1000px 560px at 84% -10%, rgba(0,79,138,0.46), transparent 58%), radial-gradient(840px 520px at 2% 116%, rgba(237,38,36,0.22), transparent 56%), radial-gradient(760px 620px at 55% 28%, rgba(145,199,232,0.08), transparent 70%), linear-gradient(180deg, #23262b, #14161a)", color:RMA.inkDim, fontFamily:"'Archivo', system-ui, -apple-system, sans-serif", padding:"0 28px 60px" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,900&display=swap');`}</style>
-      <div style={{ maxWidth:1280, margin:"0 auto" }}>
+
+      {/* Brand line-ribbon band across the top */}
+      <svg viewBox="0 0 1400 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
+        style={{ position:"absolute", top:0, left:0, width:"100%", height:150, zIndex:0, pointerEvents:"none" }}>
+        <defs>
+          <linearGradient id="ribfade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="0"/>
+            <stop offset="0.12" stopColor="#fff" stopOpacity="1"/>
+            <stop offset="0.88" stopColor="#fff" stopOpacity="1"/>
+            <stop offset="1" stopColor="#fff" stopOpacity="0"/>
+          </linearGradient>
+          <mask id="ribmask"><rect x="0" y="0" width="1400" height="190" fill="url(#ribfade)"/></mask>
+          <filter id="ribglow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g mask="url(#ribmask)">
+          <g filter="url(#ribglow)" fill="none" strokeLinecap="round" strokeWidth="5" opacity="0.95">
+            <path d="M-70 120 C 300 30, 520 168, 800 84 C 1040 12, 1240 78, 1480 30"  stroke="#004f8a"/>
+            <path d="M-70 132 C 300 42, 520 180, 800 96 C 1040 24, 1240 90, 1480 42"  stroke="#1f7fc4"/>
+            <path d="M-70 144 C 300 54, 520 192, 800 108 C 1040 36, 1240 102, 1480 54" stroke="#91c7e8"/>
+            <path d="M-70 156 C 300 66, 520 204, 800 120 C 1040 48, 1240 114, 1480 66" stroke="#ffffff"/>
+            <path d="M-70 168 C 300 78, 520 216, 800 132 C 1040 60, 1240 126, 1480 78" stroke="#ed2624"/>
+          </g>
+        </g>
+      </svg>
+
+      <div style={{ maxWidth:1280, margin:"0 auto", position:"relative", zIndex:1, paddingTop:124 }}>
 
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
@@ -620,7 +652,7 @@ export default function App() {
                   <YAxis stroke="#64748B" fontSize={11} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill:"rgba(255,255,255,0.04)" }} />
                   <Bar dataKey="value" radius={[5,5,0,0]}>
-                    {trendData.map((d,i) => <Cell key={i} fill={d.isCurrent ? "#ed2624" : "rgba(237,38,36,0.35)"} />)}
+                    {trendData.map((d,i) => <Cell key={i} fill={d.isCurrent ? "#ed2624" : "rgba(31,127,196,0.55)"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
