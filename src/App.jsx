@@ -508,8 +508,8 @@ export default function App() {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,900&display=swap');`}</style>
 
       {/* Brand line-ribbon band across the top */}
-      <svg viewBox="0 0 1400 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
-        style={{ position:"absolute", top:0, left:0, width:"100%", height:150, zIndex:0, pointerEvents:"none" }}>
+      <svg viewBox="0 0 1400 280" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
+        style={{ position:"absolute", top:34, left:0, width:"100%", height:168, zIndex:0, pointerEvents:"none" }}>
         <defs>
           <linearGradient id="ribfade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#fff" stopOpacity="0"/>
@@ -517,24 +517,24 @@ export default function App() {
             <stop offset="0.88" stopColor="#fff" stopOpacity="1"/>
             <stop offset="1" stopColor="#fff" stopOpacity="0"/>
           </linearGradient>
-          <mask id="ribmask"><rect x="0" y="0" width="1400" height="190" fill="url(#ribfade)"/></mask>
+          <mask id="ribmask"><rect x="0" y="0" width="1400" height="280" fill="url(#ribfade)"/></mask>
           <filter id="ribglow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="4" result="b"/>
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
         <g mask="url(#ribmask)">
-          <g filter="url(#ribglow)" fill="none" strokeLinecap="round" strokeWidth="5" opacity="0.95">
-            <path d="M-70 120 C 300 30, 520 168, 800 84 C 1040 12, 1240 78, 1480 30"  stroke="#004f8a"/>
-            <path d="M-70 132 C 300 42, 520 180, 800 96 C 1040 24, 1240 90, 1480 42"  stroke="#1f7fc4"/>
-            <path d="M-70 144 C 300 54, 520 192, 800 108 C 1040 36, 1240 102, 1480 54" stroke="#91c7e8"/>
-            <path d="M-70 156 C 300 66, 520 204, 800 120 C 1040 48, 1240 114, 1480 66" stroke="#ffffff"/>
-            <path d="M-70 168 C 300 78, 520 216, 800 132 C 1040 60, 1240 126, 1480 78" stroke="#ed2624"/>
+          <g filter="url(#ribglow)" fill="none" strokeLinecap="round" strokeWidth="5.5" opacity="0.95">
+            <path d="M-80 140 C 250 20, 480 210, 760 110 C 1010 20, 1240 200, 1500 95"  stroke="#004f8a"/>
+            <path d="M-80 153 C 250 33, 480 223, 760 123 C 1010 33, 1240 213, 1500 108" stroke="#1f7fc4"/>
+            <path d="M-80 166 C 250 46, 480 236, 760 136 C 1010 46, 1240 226, 1500 121" stroke="#91c7e8"/>
+            <path d="M-80 179 C 250 59, 480 249, 760 149 C 1010 59, 1240 239, 1500 134" stroke="#ffffff"/>
+            <path d="M-80 192 C 250 72, 480 262, 760 162 C 1010 72, 1240 252, 1500 147" stroke="#ed2624"/>
           </g>
         </g>
       </svg>
 
-      <div style={{ maxWidth:1280, margin:"0 auto", position:"relative", zIndex:1, paddingTop:124 }}>
+      <div style={{ maxWidth:1280, margin:"0 auto", position:"relative", zIndex:1, paddingTop:150 }}>
 
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
