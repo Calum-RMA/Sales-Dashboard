@@ -21,7 +21,7 @@ const MONTH_NAMES = ["January","February","March","April","May","June","July","A
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // Aggregate / non-salesperson rows we never want in the team picker or totals.
-const EXCLUDE = ["unassigned leads","unassigned calls","unassigned","finance rma","rma marketing","dashboard rma","totals"];
+const EXCLUDE = ["finance rma","rma marketing","dashboard rma","totals"];
 const isStaff = (name) => name && !EXCLUDE.includes(name.trim().toLowerCase());
 
 // Conversion targets (rates).
@@ -37,12 +37,28 @@ const isSalesRep  = (name) => SALES_FIRST.includes(firstName(name));
 const isPurchaser = (name) => PURCHASING_FIRST.includes(firstName(name));
 const isWeekday   = (d) => { const g = d.getDay(); return g >= 1 && g <= 5; };
 
+/* ─── RMA BRAND PALETTE ───────────────────────────────────────────────────────
+   Charcoal #2b2b2b · Blue #004f8a · Light blue #91c7e8 · Red #ed2624 · White.
+   ACCENT is the primary interactive colour (active controls, links, highlights). */
+const RMA = {
+  charcoal:"#23262b", charcoalDeep:"#15171b",
+  blue:"#004f8a", blueBright:"#1f7fc4", blueLight:"#91c7e8",
+  red:"#ed2624", white:"#ffffff",
+  panel:"rgba(255,255,255,0.04)", panel2:"rgba(255,255,255,0.03)",
+  line:"rgba(255,255,255,0.10)", lineSoft:"rgba(255,255,255,0.07)",
+  ink:"#f4f6f8", inkDim:"#c5c9cf", inkFaint:"#8a8f97",
+};
+const ACCENT = RMA.red;          // primary interactive accent
+const ACCENT_SOFT = "rgba(237,38,36,0.16)";
+const ACCENT_LINE = "rgba(237,38,36,0.45)";
+
 /* ─── COLOURS ─────────────────────────────────────────────────────────────────*/
-const KNOWN_COLORS = { Cameron:"#3B82F6", Dan:"#10B981", Kat:"#EC4899", Tom:"#8B5CF6", Adil:"#EF4444", Gustav:"#F97316" };
+// Per-person palette, derived from the RMA colours (blue / light-blue / red / steel / white tints).
+const KNOWN_COLORS = { Cameron:"#1f7fc4", Dan:"#91c7e8", Kat:"#ed2624", Tom:"#5a93c4", Adil:"#c74038", Gustav:"#7fb2d8" };
 const COLOR_PALETTE = [
-  "#3B82F6","#10B981","#F59E0B","#EC4899","#8B5CF6","#06B6D4","#EF4444","#F97316",
-  "#6366F1","#14B8A6","#A855F7","#EAB308","#0EA5E9","#F43F5E","#22C55E","#D946EF",
-  "#84CC16","#FB7185","#2DD4BF","#C084FC","#FBBF24","#60A5FA","#4ADE80","#FB923C"
+  "#1f7fc4","#91c7e8","#ed2624","#5a93c4","#c74038","#004f8a","#b9dcf0","#e06b66",
+  "#3f8fcf","#7fb2d8","#d83a33","#2e6fa8","#a7d2ec","#cf524b","#6aa6d2","#1a5f96",
+  "#f0a09b","#4a86bd","#9ec9e6","#d14e47","#67a3cf","#2b6ba0","#c0deef","#e2554f"
 ];
 const PERSON_COLORS = new Proxy({}, {
   get(_, name) {
@@ -57,7 +73,7 @@ const PERSON_COLORS = new Proxy({}, {
 const pct    = (v) => v == null || isNaN(+v) ? "0.0%" : `${(+v*100).toFixed(1)}%`;
 const fmtNum = (v) => (isNaN(+v) || v == null ? 0 : +v).toLocaleString();
 const pad2   = (n) => (n < 10 ? "0" : "") + n;
-const TOOLTIP_STYLE = { background:"#1E293B", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, color:"#F1F5F9", fontSize:12 };
+const TOOLTIP_STYLE = { background:"#1b1e23", border:"1px solid rgba(255,255,255,0.12)", borderRadius:10, color:RMA.ink, fontSize:12 };
 
 function splitCSVLine(l) {
   const cols = []; let cur = "", inQ = false;
@@ -173,7 +189,7 @@ function Segmented({ options, value, onChange }) {
     <div style={{ display:"inline-flex", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:12, padding:3, gap:2 }}>
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)} style={{
-          background: value===o.value ? "#4F6EF7" : "transparent",
+          background: value===o.value ? "#ed2624" : "transparent",
           color: value===o.value ? "#fff" : "#94A3B8",
           border:"none", borderRadius:9, padding:"7px 16px", fontSize:13, fontWeight:700, cursor:"pointer", transition:"all .15s"
         }}>{o.label}</button>
@@ -225,7 +241,7 @@ function TeamDropdown({ allPeople, salesPeople, purchasingPeople, mode, picked, 
     : `${picked.length} selected`;
   const presetStyle = (on) => ({
     flex:1, textAlign:"center", padding:"7px 6px", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:700,
-    color: on ? "#fff" : "#94A3B8", background: on ? "#4F6EF7" : "rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)"
+    color: on ? "#fff" : "#94A3B8", background: on ? "#ed2624" : "rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)"
   });
   return (
     <div ref={ref} style={{ position:"relative" }}>
@@ -238,7 +254,7 @@ function TeamDropdown({ allPeople, salesPeople, purchasingPeople, mode, picked, 
       </button>
       {open && (
         <div style={{ position:"absolute", top:"110%", right:0, zIndex:50, width:260, maxHeight:380, overflowY:"auto",
-          background:"#0F1729", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:8, boxShadow:"0 18px 50px rgba(0,0,0,0.5)" }}>
+          background:"#1b1e23", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:8, boxShadow:"0 18px 50px rgba(0,0,0,0.5)" }}>
           <div style={{ display:"flex", gap:6, marginBottom:4 }}>
             <div onClick={selectAll} style={presetStyle(allOn)}>All staff</div>
             <div onClick={() => selectGroup(salesPeople)} style={presetStyle(!allOn && sameSet(picked, salesPeople))}>Sales</div>
@@ -260,7 +276,7 @@ function TeamDropdown({ allPeople, salesPeople, purchasingPeople, mode, picked, 
 }
 const rowStyle = (on) => ({
   display:"flex", alignItems:"center", gap:9, padding:"7px 8px", borderRadius:9, cursor:"pointer",
-  color: on ? "#F1F5F9" : "#94A3B8", fontSize:13, background: on ? "rgba(79,110,247,0.12)" : "transparent"
+  color: on ? "#F1F5F9" : "#94A3B8", fontSize:13, background: on ? "rgba(237,38,36,0.12)" : "transparent"
 });
 
 function Delta({ curr, prev, label }) {
@@ -466,15 +482,15 @@ export default function App() {
   }, [periods, trendMetric, idx, TREND_N]);
 
   const KPI_DEFS = [
-    { key:"enquiries",   title:"Unique Customers", color:"#6366F1", num:(x)=>fmtNum(x.enquiries) },
-    { key:"snapCells",   title:"Snap Cells",       color:"#3B82F6", num:(x)=>fmtNum(x.snapCells),   sub:(x)=>`${pct(x.snapRate)} of enquiries`,  target:TARGETS.snap },
-    { key:"appointments",title:"Appointments",     color:"#06B6D4", num:(x)=>fmtNum(x.appointments),sub:(x)=>`${pct(x.apptRate)} of enquiries`, target:TARGETS.appt },
-    { key:"apptsKept",   title:"Appts Kept",       color:"#8B5CF6", num:(x)=>fmtNum(x.apptsKept),   sub:(x)=>`${pct(x.keptRate)} of booked`,    target:TARGETS.kept },
-    { key:"quotes",      title:"Quotes",           color:"#10B981", num:(x)=>fmtNum(x.quotes),      sub:(x)=>`${pct(x.quoteRate)} of enquiries`,target:TARGETS.quote },
-    { key:"orders",      title:"Total Orders",     color:"#EC4899", num:(x)=>fmtNum(x.orders),      sub:(x)=>`${pct(x.orderRate)} order rate`,  target:TARGETS.order },
-    { key:"outbound",    title:"Outbound Calls",   color:"#F97316", num:(x)=>fmtNum(x.outbound) },
-    { key:"inbound",     title:"Inbound Calls",    color:"#14B8A6", num:(x)=>fmtNum(x.inbound) },
-    { key:"connected",   title:"Connected Calls",  color:"#F59E0B", num:(x)=>fmtNum(x.connected), sub:connSub, targetText:connTargetText },
+    { key:"enquiries",   title:"Unique Customers", color:"#ed2624", num:(x)=>fmtNum(x.enquiries) },
+    { key:"snapCells",   title:"Snap Cells",       color:"#1f7fc4", num:(x)=>fmtNum(x.snapCells),   sub:(x)=>`${pct(x.snapRate)} of enquiries`,  target:TARGETS.snap },
+    { key:"appointments",title:"Appointments",     color:"#91c7e8", num:(x)=>fmtNum(x.appointments),sub:(x)=>`${pct(x.apptRate)} of enquiries`, target:TARGETS.appt },
+    { key:"apptsKept",   title:"Appts Kept",       color:"#5a93c4", num:(x)=>fmtNum(x.apptsKept),   sub:(x)=>`${pct(x.keptRate)} of booked`,    target:TARGETS.kept },
+    { key:"quotes",      title:"Quotes",           color:"#7fb2d8", num:(x)=>fmtNum(x.quotes),      sub:(x)=>`${pct(x.quoteRate)} of enquiries`,target:TARGETS.quote },
+    { key:"orders",      title:"Total Orders",     color:"#ed2624", num:(x)=>fmtNum(x.orders),      sub:(x)=>`${pct(x.orderRate)} order rate`,  target:TARGETS.order },
+    { key:"outbound",    title:"Outbound Calls",   color:"#3f8fcf", num:(x)=>fmtNum(x.outbound) },
+    { key:"inbound",     title:"Inbound Calls",    color:"#b9dcf0", num:(x)=>fmtNum(x.inbound) },
+    { key:"connected",   title:"Connected Calls",  color:"#c74038", num:(x)=>fmtNum(x.connected), sub:connSub, targetText:connTargetText },
   ];
   const METRIC_TABS = [
     ["enquiries","Customers"],["snapCells","Snap Cells"],["appointments","Appts"],
@@ -484,20 +500,33 @@ export default function App() {
   const noDaily = (gran === "day" || gran === "week") && (!dailyOk || daily.length === 0);
 
   return (
-    <div style={{ minHeight:"100vh", background:"radial-gradient(1200px 600px at 70% -10%, #1B2440 0%, #0B1020 55%)", color:"#E2E8F0", fontFamily:"Inter, system-ui, sans-serif", padding:"28px 28px 60px" }}>
+    <div style={{ minHeight:"100vh", background:"radial-gradient(1000px 560px at 84% -12%, rgba(0,79,138,0.34), transparent 60%), radial-gradient(820px 520px at 2% 116%, rgba(237,38,36,0.16), transparent 58%), linear-gradient(180deg, #23262b, #15171b)", color:RMA.inkDim, fontFamily:"'Archivo', system-ui, -apple-system, sans-serif", padding:"28px 28px 60px" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,900&display=swap');`}</style>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
 
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
           <div>
-            <div style={{ color:"#6366F1", fontWeight:800, fontSize:13, letterSpacing:"0.2em" }}>RMA MOTORS · CRM ANALYTICS</div>
-            <h1 style={{ margin:"6px 0 4px", fontSize:34, fontWeight:900, color:"#F8FAFC", letterSpacing:"-0.02em" }}>Customer Journey KPI Dashboard</h1>
-            <div style={{ color:"#64748B", fontSize:13 }}>
-              {loading ? "Loading…" : error ? <span style={{color:"#EF4444"}}>Error: {error}</span> :
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:10 }}>
+              {/* RMA Motors wordmark lockup */}
+              <div style={{ display:"flex", flexDirection:"column", lineHeight:1, justifyContent:"center" }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:"0.3em" }}>
+                  <span style={{ fontWeight:900, fontStyle:"italic", fontSize:22, letterSpacing:"-0.015em", color:RMA.white }}>RMA</span>
+                  <span style={{ fontWeight:300, fontSize:22, letterSpacing:"0.02em", color:RMA.white, textTransform:"uppercase" }}>Motors</span>
+                </div>
+                <div style={{ alignSelf:"flex-end", marginTop:3, fontWeight:400, fontSize:8, letterSpacing:"0.6em", textIndent:"0.6em", textTransform:"uppercase", color:RMA.white, opacity:0.9 }}>Dubai</div>
+              </div>
+              <div style={{ width:1, height:30, background:RMA.line }} />
+              <div style={{ fontWeight:700, fontSize:12, letterSpacing:"0.26em", textTransform:"uppercase", color:RMA.blueLight }}>Customer Journey</div>
+            </div>
+            <div style={{ color:ACCENT, fontWeight:700, fontSize:12, letterSpacing:"0.3em", textTransform:"uppercase" }}>CRM Analytics</div>
+            <h1 style={{ margin:"6px 0 4px", fontSize:34, fontWeight:800, color:RMA.white, letterSpacing:"0.005em", textTransform:"uppercase" }}>Customer Journey KPI Dashboard</h1>
+            <div style={{ color:RMA.inkFaint, fontSize:13 }}>
+              {loading ? "Loading…" : error ? <span style={{color:ACCENT}}>Error: {error}</span> :
               <>Live · {refreshed ? refreshed.toLocaleTimeString() : ""} · {monthly.length} monthly rows · {daily.length} daily rows</>}
             </div>
           </div>
-          <button onClick={load} style={{ background:"rgba(99,102,241,0.18)", border:"1px solid rgba(99,102,241,0.5)", color:"#C7D2FE", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer" }}>⟳ Refresh</button>
+          <button onClick={load} style={{ background:ACCENT_SOFT, border:`1px solid ${ACCENT_LINE}`, color:"#f7b4b1", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer" }}>⟳ Refresh</button>
         </div>
 
         {/* Controls */}
@@ -511,7 +540,7 @@ export default function App() {
                 onPrev={() => setPeriodIdx(idx - 1)} onNext={() => setPeriodIdx((periodIdx==null?periods.length-1:idx) + 1)}
               />
             )}
-            {idx < periods.length - 1 && <button onClick={()=>setPeriodIdx(null)} style={{ background:"none", border:"none", color:"#6366F1", fontSize:12, fontWeight:700, cursor:"pointer" }}>Jump to latest →</button>}
+            {idx < periods.length - 1 && <button onClick={()=>setPeriodIdx(null)} style={{ background:"none", border:"none", color:"#ed2624", fontSize:12, fontWeight:700, cursor:"pointer" }}>Jump to latest →</button>}
           </div>
           <TeamDropdown allPeople={allPeople} salesPeople={salesPeople} purchasingPeople={purchasingPeople} mode={mode} picked={picked} setMode={setMode} setPicked={setPicked} />
         </div>
@@ -547,17 +576,17 @@ export default function App() {
                   </div>
                 </div>
                 {improvements.length === 0 ? (
-                  <div style={{ color:"#34D399", fontSize:14, fontWeight:600 }}>All monitored sales reps are meeting their targets for this period. 🎉</div>
+                  <div style={{ color:"#91c7e8", fontSize:14, fontWeight:600 }}>All monitored sales reps are meeting their targets for this period. 🎉</div>
                 ) : (
                   <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                     {improvements.map(r => (
-                      <div key={r.person} style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", padding:"10px 12px", background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.18)", borderRadius:12 }}>
+                      <div key={r.person} style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", padding:"10px 12px", background:"rgba(237,38,36,0.07)", border:"1px solid rgba(237,38,36,0.22)", borderRadius:12 }}>
                         <span style={{ display:"flex", alignItems:"center", gap:8, minWidth:150, color:"#F1F5F9", fontWeight:700, fontSize:14 }}>
                           <span style={{ width:9, height:9, borderRadius:9, background:PERSON_COLORS[r.person], display:"inline-block" }} />{r.person}
                         </span>
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                           {r.flags.map(f => (
-                            <span key={f.label} style={{ background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.3)", color:"#FCA5A5", borderRadius:8, padding:"4px 9px", fontSize:12, fontWeight:600 }}>
+                            <span key={f.label} style={{ background:"rgba(237,38,36,0.14)", border:"1px solid rgba(237,38,36,0.4)", color:"#f4a6a3", borderRadius:8, padding:"4px 9px", fontSize:12, fontWeight:600 }}>
                               {f.label}: {f.actual} <span style={{ color:"#94A3B8", fontWeight:500 }}>/ {f.target}</span>
                             </span>
                           ))}
@@ -578,7 +607,7 @@ export default function App() {
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {METRIC_TABS.map(([k,lbl]) => (
                     <button key={k} onClick={()=>setTrendMetric(k)} style={{
-                      background: trendMetric===k ? "#4F6EF7" : "rgba(255,255,255,0.05)",
+                      background: trendMetric===k ? "#ed2624" : "rgba(255,255,255,0.05)",
                       color: trendMetric===k ? "#fff" : "#94A3B8", border:"1px solid rgba(255,255,255,0.1)",
                       borderRadius:9, padding:"5px 11px", fontSize:12, fontWeight:700, cursor:"pointer" }}>{lbl}</button>
                   ))}
@@ -591,7 +620,7 @@ export default function App() {
                   <YAxis stroke="#64748B" fontSize={11} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill:"rgba(255,255,255,0.04)" }} />
                   <Bar dataKey="value" radius={[5,5,0,0]}>
-                    {trendData.map((d,i) => <Cell key={i} fill={d.isCurrent ? "#4F6EF7" : "rgba(79,110,247,0.35)"} />)}
+                    {trendData.map((d,i) => <Cell key={i} fill={d.isCurrent ? "#ed2624" : "rgba(237,38,36,0.35)"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -625,7 +654,7 @@ export default function App() {
                         <td style={{ padding:"9px 10px", color:"#F1F5F9", fontWeight:700 }}>{fmtNum(p.orders)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.outbound)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.inbound)}</td>
-                        <td style={{ padding:"9px 10px", color:"#FBBF24", fontWeight:700 }}>{fmtNum(p.connected)}</td>
+                        <td style={{ padding:"9px 10px", color:"#91c7e8", fontWeight:700 }}>{fmtNum(p.connected)}</td>
                       </tr>
                     ))}
                     {perPerson.length === 0 && <tr><td colSpan={10} style={{ padding:"18px", textAlign:"center", color:"#64748B" }}>No data for this selection.</td></tr>}
