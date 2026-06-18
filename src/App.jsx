@@ -674,7 +674,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {perPerson.map(p => (
-                      <tr key={p.person} style={{ borderTop:"1px solid rgba(255,255,255,0.06)", textAlign:"right" }}>
+                      <tr key={p.person} style={{ borderTop:"1px solid rgba(255,255,255,0.06)", textAlign:"right", color:"#ffffff" }}>
                         <td style={{ textAlign:"left", padding:"9px 10px", color:"#E2E8F0", fontWeight:600 }}>
                           <span style={{ display:"inline-block", width:8, height:8, borderRadius:8, background:PERSON_COLORS[p.person], marginRight:8 }} />{p.person}
                         </td>
