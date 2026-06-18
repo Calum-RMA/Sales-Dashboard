@@ -73,7 +73,7 @@ const PERSON_COLORS = new Proxy({}, {
 const pct    = (v) => v == null || isNaN(+v) ? "0.0%" : `${(+v*100).toFixed(1)}%`;
 const fmtNum = (v) => (isNaN(+v) || v == null ? 0 : +v).toLocaleString();
 const pad2   = (n) => (n < 10 ? "0" : "") + n;
-const TOOLTIP_STYLE = { background:"#1b1e23", border:"1px solid rgba(255,255,255,0.12)", borderRadius:10, color:RMA.ink, fontSize:12 };
+const TOOLTIP_STYLE = { background:"#1b1e23", border:"1px solid rgba(255,255,255,0.12)", borderRadius:10, color:"#ffffff", fontSize:12 };
 
 function splitCSVLine(l) {
   const cols = []; let cur = "", inQ = false;
@@ -650,7 +650,7 @@ export default function App() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis dataKey="name" stroke="#64748B" fontSize={11} />
                   <YAxis stroke="#64748B" fontSize={11} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill:"rgba(255,255,255,0.04)" }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color:"#ffffff", fontWeight:700, marginBottom:2 }} itemStyle={{ color:"#ffffff" }} cursor={{ fill:"rgba(255,255,255,0.04)" }} />
                   <Bar dataKey="value" radius={[5,5,0,0]}>
                     {trendData.map((d,i) => <Cell key={i} fill={d.isCurrent ? "#ed2624" : "rgba(31,127,196,0.55)"} />)}
                   </Bar>
