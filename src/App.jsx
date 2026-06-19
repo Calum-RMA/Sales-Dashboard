@@ -536,6 +536,8 @@ export default function App() {
 
       <div style={{ maxWidth:1280, margin:"0 auto", position:"relative", zIndex:1, paddingTop:150 }}>
 
+        <a href="https://rma-dashhub.netlify.app/" style={{ display:"inline-flex", alignItems:"center", gap:8, marginBottom:18, padding:"8px 14px", borderRadius:10, border:"1px solid rgba(145,199,232,0.4)", background:"rgba(145,199,232,0.08)", color:"#91c7e8", fontSize:12, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", textDecoration:"none" }}>← Dashboard Homepage</a>
+
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
           <div>
