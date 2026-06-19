@@ -536,8 +536,6 @@ export default function App() {
 
       <div style={{ maxWidth:1280, margin:"0 auto", position:"relative", zIndex:1, paddingTop:150 }}>
 
-        <a href="https://rma-dashhub.netlify.app/" style={{ display:"inline-flex", alignItems:"center", gap:8, marginBottom:18, padding:"8px 14px", borderRadius:10, border:"1px solid rgba(145,199,232,0.4)", background:"rgba(145,199,232,0.08)", color:"#91c7e8", fontSize:12, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", textDecoration:"none" }}>← Dashboard Homepage</a>
-
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:16 }}>
           <div>
@@ -560,7 +558,10 @@ export default function App() {
               <>Live · {refreshed ? refreshed.toLocaleTimeString() : ""} · {monthly.length} monthly rows · {daily.length} daily rows</>}
             </div>
           </div>
-          <button onClick={load} style={{ background:ACCENT_SOFT, border:`1px solid ${ACCENT_LINE}`, color:"#f7b4b1", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer" }}>⟳ Refresh</button>
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+            <a href="https://rma-dashhub.netlify.app/" style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:12, border:"1px solid rgba(145,199,232,0.4)", background:"rgba(145,199,232,0.08)", color:"#91c7e8", fontSize:13, fontWeight:700, letterSpacing:"0.04em", textTransform:"uppercase", textDecoration:"none", whiteSpace:"nowrap" }}>← Dashboard Homepage</a>
+            <button onClick={load} style={{ background:ACCENT_SOFT, border:`1px solid ${ACCENT_LINE}`, color:"#f7b4b1", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>⟳ Refresh</button>
+          </div>
         </div>
 
         {/* Controls */}
