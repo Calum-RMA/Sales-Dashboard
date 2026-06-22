@@ -108,7 +108,11 @@ function makeRowParser(headerLine) {
   const num = (cols, i) => {
     if (i == null || i < 0) return 0;
     const v = parseFloat(String(cols[i] || "0").replace(/[^0-9.-]/g, ""));
-    return isNaN(v) ? 0 : v;
+    // Counts (snaps, appts, quotes, etc.) can never be negative. A negative value here
+    // means a bad upstream scrape — e.g. Snapcell's date filter failing to apply, so the
+    // day's figure is computed as a negative delta (the -177 case). Clamp to 0 so a single
+    // bad row can't subtract from the period totals; the real value returns once re-scraped.
+    return isNaN(v) || v < 0 ? 0 : v;
   };
   return { idx, num };
 }
