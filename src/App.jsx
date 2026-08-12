@@ -30,8 +30,8 @@ const CONNECTED_PER_DAY = 40;   // connected-calls target, per sales rep per wor
 
 // Sales reps we actively monitor — targets apply to these. Matched by first name so it works
 // whether the sheet stores "Kat Durham" or "Katherine Durham", "Kaz"/"Kazeem", "Dan"/"Daniel".
-const SALES_FIRST      = ["kazeem","kaz","roger","kat","katherine","cameron","cam","daniel","dan","sean","jordan","aliyah"];
-const PURCHASING_FIRST = ["richardo","ricardo","gordon","barry","ahmed","sean"];   // Sean is both
+const SALES_FIRST      = ["kazeem","kaz","roger","kat","katherine","cameron","cam","daniel","dan","jordan","aliyah"];
+const PURCHASING_FIRST = ["richardo","ricardo","gordon","barry","ahmed","sean"];   // Sean moved from sales to purchasing
 const firstName   = (name) => (name||"").toLowerCase().trim().split(/\s+/)[0];
 const isSalesRep  = (name) => SALES_FIRST.includes(firstName(name));
 const isPurchaser = (name) => PURCHASING_FIRST.includes(firstName(name));
