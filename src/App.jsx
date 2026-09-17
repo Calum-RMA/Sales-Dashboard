@@ -15,7 +15,7 @@ const SHEET_ID  = "1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw";
 const GVIZ      = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tab}`;
 const MONTH_SRC = IS_LOCAL ? GVIZ("Dashboard") : "/api/data";
 const DAILY_SRC = IS_LOCAL ? GVIZ("Daily")     : "/api/daily";
-const CALLBACK_SRC = IS_LOCAL ? GVIZ("Callbacks") : "/api/callbacks";   // written by callgear.js
+const CALLBACK_SRC = IS_LOCAL ? GVIZ("Callbacks") + "&headers=1" : "/api/callbacks";   // written by callgear.js (headers=1 stops Sheets guessing the header row)
 
 /* ─── CONSTANTS ──────────────────────────────────────────────────────────────*/
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
