@@ -15,6 +15,7 @@ const SHEET_ID  = "1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw";
 const GVIZ      = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tab}`;
 const MONTH_SRC = IS_LOCAL ? GVIZ("Dashboard") : "/api/data";
 const DAILY_SRC = IS_LOCAL ? GVIZ("Daily")     : "/api/daily";
+const CALLBACK_SRC = IS_LOCAL ? GVIZ("Callbacks") : "/api/callbacks";   // written by callgear.js
 
 /* ─── CONSTANTS ──────────────────────────────────────────────────────────────*/
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -164,6 +165,34 @@ function parseDaily(text) {
   }
   return out;
 }
+
+// "Callbacks" tab: one row per missed inbound caller per day (written by callgear.js).
+function parseCallbacks(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+  if (lines.length < 2) return [];
+  const h = splitCSVLine(lines[0]).map(x => x.toLowerCase());
+  const c = (n) => h.indexOf(n);
+  const out = [];
+  for (let r = 1; r < lines.length; r++) {
+    const cols = splitCSVLine(lines[r]);
+    const m = String(cols[c("date")] || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) continue;
+    const minsRaw = cols[c("mins to callback")];
+    out.push({
+      dateISO: `${m[1]}-${m[2]}-${m[3]}`, dateObj: new Date(+m[1], +m[2]-1, +m[3]),
+      missedAt: cols[c("missed at")] || "", number: cols[c("number")] || "",
+      missedCalls: parseInt(cols[c("missed calls")], 10) || 1,
+      outOfHours: cols[c("out of hours")] === "Yes",
+      calledBackBy: cols[c("called back by")] || "",
+      mins: minsRaw === "" || minsRaw == null || isNaN(+minsRaw) ? null : +minsRaw,
+      connected: cols[c("callback connected")] === "Yes",
+      gotThrough: cols[c("customer got through")] === "Yes",
+      status: cols[c("status")] || "",
+    });
+  }
+  return out;
+}
+const fmtMins = (m) => m == null || isNaN(m) ? "–" : m < 60 ? `${Math.round(m)} min` : `${Math.floor(m/60)}h ${pad2(Math.round(m%60))}m`;
 
 function calcMetrics(rows) {
   const s = (k) => rows.reduce((a, r) => a + (+r[k] || 0), 0);
@@ -320,6 +349,7 @@ export default function App() {
   const [monthly, setMonthly]   = useState([]);
   const [daily, setDaily]       = useState([]);
   const [dailyOk, setDailyOk]   = useState(true);
+  const [callbacks, setCallbacks] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [refreshed, setRefreshed] = useState(null);
@@ -341,6 +371,8 @@ export default function App() {
       setMonthly(parseMonthly(mText));
       try { const dText = await get(DAILY_SRC); const d = parseDaily(dText); setDaily(d); setDailyOk(true); }
       catch { setDaily([]); setDailyOk(false); }
+      try { setCallbacks(parseCallbacks(await get(CALLBACK_SRC))); }
+      catch { setCallbacks([]); }
       setRefreshed(new Date());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -481,6 +513,33 @@ export default function App() {
     });
     return list.sort((a,b) => b.flags.length - a.flags.length);
   }, [current, workingDays]);
+
+  // Missed calls & callbacks for the current period (team-wide; per-person rows follow the team filter).
+  const cb = useMemo(() => {
+    if (!current || !callbacks.length) return null;
+    const inPeriod = (r) => gran === "day" ? r.dateISO === current.key
+      : gran === "week" ? isoOf(weekStart(r.dateObj)) === current.key
+      : r.dateObj.getFullYear() === current.year && r.dateObj.getMonth() === current.monthIdx;
+    const list = callbacks.filter(inPeriod);
+    const called = list.filter(r => r.calledBackBy);
+    const resolved = list.filter(r => r.status === "Resolved");
+    const timed = called.filter(r => r.mins != null);
+    const byPerson = new Map();
+    called.forEach(r => {
+      if (mode !== "all" && !picked.includes(r.calledBackBy)) return;
+      const o = byPerson.get(r.calledBackBy) || { person:r.calledBackBy, calls:0, connected:0, minsTotal:0, minsN:0 };
+      o.calls++; if (r.connected) o.connected++;
+      if (r.mins != null) { o.minsTotal += r.mins; o.minsN++; }
+      byPerson.set(r.calledBackBy, o);
+    });
+    return {
+      n: list.length, called: called.length, resolved: resolved.length,
+      avg: timed.length ? timed.reduce((a, r) => a + r.mins, 0) / timed.length : null,
+      people: [...byPerson.values()].sort((a,b) => b.calls - a.calls),
+      open: list.filter(r => r.status !== "Resolved").sort((a,b) => (a.dateISO + a.missedAt).localeCompare(b.dateISO + b.missedAt)),
+    };
+  }, [current, callbacks, gran, mode, picked]);
+  const cbPct = (a) => cb && cb.n ? `${Math.round(a / cb.n * 100)}%` : "0%";
 
   // Trend across the last N periods for the selected metric.
   const TREND_N = gran === "day" ? 14 : gran === "week" ? 8 : 12;
@@ -633,6 +692,80 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Missed calls & callbacks (CallGear) */}
+            {cb && (
+              <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:18, padding:"20px 22px", marginTop:22 }}>
+                <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:8, marginBottom:14 }}>
+                  <div style={{ color:"#F1F5F9", fontSize:16, fontWeight:800 }}>Missed calls &amp; callbacks · {current.label}</div>
+                  <div style={{ color:"#64748B", fontSize:12 }}>from CallGear · one entry per caller per day · resolved = spoke to the customer</div>
+                </div>
+                {cb.n === 0 ? (
+                  <div style={{ color:"#91c7e8", fontSize:14, fontWeight:600 }}>No missed inbound calls in this period. 🎉</div>
+                ) : (
+                  <>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:14 }}>
+                      <KPICard title="Missed Callers" color="#ed2624" value={fmtNum(cb.n)} sub="unique numbers" />
+                      <KPICard title="Called Back" color="#1f7fc4" value={cbPct(cb.called)} sub={`${fmtNum(cb.called)} of ${fmtNum(cb.n)}`} />
+                      <KPICard title="Resolved" color="#91c7e8" value={cbPct(cb.resolved)} sub="callback connected or customer got through" />
+                      <KPICard title="Avg Time to Call Back" color="#5a93c4" value={fmtMins(cb.avg)} sub="out-of-hours calls timed from opening" />
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))", gap:18, marginTop:18 }}>
+                      <div style={{ overflowX:"auto" }}>
+                        <div style={{ color:"#a9aeb6", fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8, textAlign:"left" }}>Callbacks by person</div>
+                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                          <thead><tr style={{ color:"#64748B", textAlign:"right", fontSize:11, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                            <th style={{ textAlign:"left", padding:"6px 10px" }}>Called back by</th><th style={{ padding:"6px 10px" }}>Callbacks</th><th style={{ padding:"6px 10px" }}>Connected</th><th style={{ padding:"6px 10px" }}>Avg time</th>
+                          </tr></thead>
+                          <tbody>
+                            {cb.people.map(p => (
+                              <tr key={p.person} style={{ borderTop:"1px solid rgba(255,255,255,0.06)", textAlign:"right", color:"#ffffff" }}>
+                                <td style={{ textAlign:"left", padding:"8px 10px", color:"#E2E8F0", fontWeight:600 }}>
+                                  <span style={{ display:"inline-block", width:8, height:8, borderRadius:8, background:PERSON_COLORS[p.person], marginRight:8 }} />{p.person}
+                                </td>
+                                <td style={{ padding:"8px 10px" }}>{fmtNum(p.calls)}</td>
+                                <td style={{ padding:"8px 10px" }}>{fmtNum(p.connected)}</td>
+                                <td style={{ padding:"8px 10px", color:"#91c7e8", fontWeight:700 }}>{fmtMins(p.minsN ? p.minsTotal / p.minsN : null)}</td>
+                              </tr>
+                            ))}
+                            {cb.people.length === 0 && <tr><td colSpan={4} style={{ padding:"14px", textAlign:"center", color:"#64748B" }}>No callbacks made by this selection.</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ overflowX:"auto" }}>
+                        <div style={{ color: cb.open.length ? "#f4a6a3" : "#a9aeb6", fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8, textAlign:"left" }}>
+                          Not yet reached · {fmtNum(cb.open.length)}
+                        </div>
+                        {cb.open.length === 0 ? (
+                          <div style={{ color:"#91c7e8", fontSize:14, fontWeight:600, textAlign:"left" }}>Every missed caller was reached.</div>
+                        ) : (
+                          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                            <thead><tr style={{ color:"#64748B", textAlign:"left", fontSize:11, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                              <th style={{ padding:"6px 10px" }}>Missed</th><th style={{ padding:"6px 10px" }}>Number</th><th style={{ padding:"6px 10px", textAlign:"right" }}>Calls</th><th style={{ padding:"6px 10px" }}>Status</th>
+                            </tr></thead>
+                            <tbody>
+                              {cb.open.map((r, i) => (
+                                <tr key={i} style={{ borderTop:"1px solid rgba(255,255,255,0.06)", color:"#ffffff" }}>
+                                  <td style={{ padding:"8px 10px", whiteSpace:"nowrap" }}>
+                                    {gran === "day" ? "" : `${dayShort(r.dateObj)} · `}{r.missedAt}
+                                    {r.outOfHours && <span style={{ color:"#64748B", fontSize:11, marginLeft:6 }}>out of hours</span>}
+                                  </td>
+                                  <td style={{ padding:"8px 10px", color:"#E2E8F0" }}>{r.number}</td>
+                                  <td style={{ padding:"8px 10px", textAlign:"right" }}>{r.missedCalls}</td>
+                                  <td style={{ padding:"8px 10px", color: r.calledBackBy ? "#FDBA74" : "#f4a6a3", fontWeight:600 }}>
+                                    {r.calledBackBy ? `Tried by ${r.calledBackBy}` : "Not called back"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             )}
