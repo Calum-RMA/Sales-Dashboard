@@ -122,7 +122,8 @@ export default function CallAssessments({ refreshKey = 0 }) {
         setScores(parseCSV(a).map((r) => ({
           date: normDate(r["date"]), time: r["time"], id: String(r["call id"] || "").trim(),
           rep: (r["sales person"] || "").trim(), dir: (r["direction"] || "").trim(), scen: (r["scenario"] || "").trim(),
-          score: toNum(r["score %"]), target: toNum(r["target %"]), passed: String(r["passed"]).trim().toLowerCase() === "yes",
+          score: toNum(r["score %"]) ?? (toNum(r["points total"]) ? Math.round((toNum(r["points hit"]) / toNum(r["points total"])) * 100) : null),
+          target: toNum(r["target %"]) ?? 70, passed: String(r["passed"]).trim().toLowerCase() === "yes",
           hit: toNum(r["points hit"]), total: toNum(r["points total"]), missed: r["missed points"] || "",
           talk: toNum(r["talk secs"]), number: r["number"] || "", summary: r["summary"] || "",
         })).filter((c) => c.date && c.score != null));
