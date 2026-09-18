@@ -6,7 +6,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
    Written by eskimo-scraper/callgear-scores.js to two tabs on the same sheet:
      • "Call Scores"  — one row per scored call
      • "Score Points" — one row per checklist point per call (drives the trends)
-   On Netlify the requests hit /api/scores and /api/points (see public/_redirects).  */
+   On Netlify the requests hit /api/scores and /api/points (see public/_redirects).
+
+   NOTE on completion vs missed: CallGear's Script Points screen shows % COMPLETED
+   (e.g. Car of interest 94%). The point panels here show the same completion %, with
+   the missed % alongside for coaching. The heat grids can toggle between Completed %
+   and Missed % — the cell SHADING always reflects the miss rate (dark = needs
+   attention) so the coaching read stays consistent whichever number is shown.       */
 const IS_LOCAL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 const SHEET_ID = "1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw";
 const GVIZ = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(tab)}`;
@@ -111,6 +117,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
   const [period, setPeriod] = useState("30");   // 7 | 30 | 90 | all
   const [rep, setRep] = useState("");
   const [dir, setDir] = useState("");
+  const [pointMetric, setPointMetric] = useState("completed");   // "completed" (matches CallGear) | "missed" (coaching)
 
   useEffect(() => {
     let alive = true;
@@ -244,6 +251,19 @@ export default function CallAssessments({ refreshKey = 0 }) {
   const th = { color: "#64748B", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px", textAlign: "left", fontWeight: 700 };
   const rowh = { ...th, color: "#E2E8F0", textTransform: "none", letterSpacing: 0, fontSize: 12, fontWeight: 500, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
+  // Grids/panels show completion % or missed % per the toggle; cell SHADING always uses the miss rate
+  // (dark = needs attention) so the coaching read stays consistent whichever number is displayed.
+  const showingDone = pointMetric === "completed";
+  const dispVal = (missRate) => Math.round(showingDone ? 100 - missRate : missRate);
+  const metricWord = showingDone ? "completed" : "missed";
+  const pointToggle = (
+    <div style={{ display: "flex", gap: 6 }}>
+      {[["completed", "Completed %"], ["missed", "Missed %"]].map(([v, lbl]) => (
+        <button key={v} onClick={() => setPointMetric(v)} style={segBtn(pointMetric === v)}>{lbl}</button>
+      ))}
+    </div>
+  );
+
   if (loading) return <div style={{ textAlign: "center", color: "#64748B", padding: "60px 0" }}>Loading call assessments…</div>;
   if (error) return (
     <div style={{ ...PANEL, color: "#FDBA74" }}>
@@ -287,7 +307,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
         <Card title="Calls Scored" color="#5a93c4" value={cur.length} sub={`previous period ${prev.length}`} />
         <Card title="Most Missed Point" color="#ed2624"
           value={<span style={{ fontSize: 17, lineHeight: 1.25, display: "block" }}>{topMiss ? shortName(topMiss.point) : "–"}</span>}
-          sub={topMiss ? `Missed on ${Math.round(topMiss.rate)}% of calls (${topMiss.miss} of ${topMiss.n})` : null} />
+          sub={topMiss ? `Completed on ${Math.round(100 - topMiss.rate)}% of calls (missed ${topMiss.miss} of ${topMiss.n})` : null} />
       </div>
 
       {/* Score trend */}
@@ -309,24 +329,26 @@ export default function CallAssessments({ refreshKey = 0 }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Missed points + by salesperson */}
+      {/* Checklist completion + by salesperson */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 18 }}>
         <div style={PANEL}>
-          <div style={{ ...H, marginBottom: 4 }}>What is being missed</div>
-          <div style={{ ...SUB, marginBottom: 14 }}>share of scored calls missing each point, and the change vs the previous period</div>
+          <div style={{ ...H, marginBottom: 4 }}>Checklist completion</div>
+          <div style={{ ...SUB, marginBottom: 14 }}>% of scored calls that completed each point (matches CallGear), with missed % alongside · lowest completion first</div>
           {missList.length === 0 ? <div style={SUB}>No checklist data in this period.</div> : missList.map((s) => {
+            const done = 100 - s.rate;
             const p = prevMiss.get(s.point);
-            const d = p && p.n >= 3 && s.n >= 3 ? Math.round(s.rate - p.rate) : null;
+            const dc = p && p.n >= 3 && s.n >= 3 ? Math.round(p.rate - s.rate) : null; // completion change vs previous
             return (
-              <div key={s.point} title={s.point} style={{ display: "grid", gridTemplateColumns: "minmax(110px, 220px) 1fr 76px", gap: 10, alignItems: "center", padding: "5px 0" }}>
+              <div key={s.point} title={s.point} style={{ display: "grid", gridTemplateColumns: "minmax(110px, 200px) 1fr 150px", gap: 10, alignItems: "center", padding: "5px 0" }}>
                 <div style={{ color: "#E2E8F0", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {shortName(s.point)}<span style={{ color: "#64748B", fontSize: 10, textTransform: "uppercase", marginLeft: 6 }}>{s.imp}</span>
                 </div>
                 <div style={{ height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.max(1, s.rate)}%`, height: "100%", background: "#1f7fc4", borderRadius: "0 4px 4px 0" }} />
+                  <div style={{ width: `${Math.max(1, done)}%`, height: "100%", background: "#1f7fc4", borderRadius: "0 4px 4px 0" }} />
                 </div>
-                <div style={{ textAlign: "right", color: "#fff", fontSize: 13, fontWeight: 600 }}>
-                  {Math.round(s.rate)}%{d != null && d !== 0 && <span style={{ color: d < 0 ? "#4ade80" : "#f4a6a3", fontSize: 11, marginLeft: 5 }}>{d > 0 ? "▲" : "▼"}{Math.abs(d)}</span>}
+                <div style={{ textAlign: "right", color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {Math.round(done)}%<span style={{ color: "#64748B", fontWeight: 500, fontSize: 11, marginLeft: 5 }}>· {Math.round(s.rate)}% missed</span>
+                  {dc != null && dc !== 0 && <span style={{ color: dc > 0 ? "#4ade80" : "#f4a6a3", fontSize: 11, marginLeft: 5 }}>{dc > 0 ? "▲" : "▼"}{Math.abs(dc)}</span>}
                 </div>
               </div>
             );
@@ -362,11 +384,14 @@ export default function CallAssessments({ refreshKey = 0 }) {
         </div>
       </div>
 
-      {/* Missed-point trend */}
+      {/* Point trend (toggle: completed % / missed %) */}
       <div style={PANEL}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          <div style={H}>Missed-point trend</div>
-          <div style={SUB}>% of calls missing each point per {daily ? "day" : "week"} · darker = missed more often · rows that stay dark are the habits to coach</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          <div>
+            <div style={H}>Point {showingDone ? "completion" : "miss"} trend</div>
+            <div style={SUB}>% of calls {metricWord} each point per {daily ? "day" : "week"} · shading always = miss rate (darker = needs coaching)</div>
+          </div>
+          {pointToggle}
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "separate", borderSpacing: 2, fontSize: 12, width: "100%" }}>
@@ -382,10 +407,10 @@ export default function CallAssessments({ refreshKey = 0 }) {
                     const c = timeGrid.get(`${s.point}|${k}`);
                     if (!c) return <td key={k} style={{ textAlign: "center", color: "#3f4650", padding: "7px 4px" }}>·</td>;
                     const rate = (c.miss / c.n) * 100;
-                    return <td key={k} title={`${shortName(s.point)} · ${daily ? fmtDay(k) : "w/c " + fmtDay(k)}: missed on ${c.miss} of ${c.n} calls`}
-                      style={{ ...cellStyle(rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, minWidth: 44 }}>{Math.round(rate)}</td>;
+                    return <td key={k} title={`${shortName(s.point)} · ${daily ? fmtDay(k) : "w/c " + fmtDay(k)}: ${showingDone ? "completed on " + (c.n - c.miss) : "missed on " + c.miss} of ${c.n} calls`}
+                      style={{ ...cellStyle(rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, minWidth: 44 }}>{dispVal(rate)}</td>;
                   })}
-                  <td style={{ ...cellStyle(s.rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, fontWeight: 800 }}>{Math.round(s.rate)}</td>
+                  <td style={{ ...cellStyle(s.rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, fontWeight: 800 }}>{dispVal(s.rate)}</td>
                 </tr>
               ))}
               {pointOrder.length === 0 && <tr><td style={{ padding: 18, color: "#64748B" }}>No checklist data in this period.</td></tr>}
@@ -393,15 +418,18 @@ export default function CallAssessments({ refreshKey = 0 }) {
           </table>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap", ...SUB }}>
-          Missed on:{BANDS.map((b, i) => <span key={b} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 22, height: 10, borderRadius: 2, background: SEQ[i], display: "inline-block" }} />{b}{i === BANDS.length - 1 ? "%+" : ""}</span>)} · blank = no calls
+          Shading = missed on:{BANDS.map((b, i) => <span key={b} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 22, height: 10, borderRadius: 2, background: SEQ[i], display: "inline-block" }} />{b}{i === BANDS.length - 1 ? "%+" : ""}</span>)} · numbers show {showingDone ? "completed %" : "missed %"} · blank = no calls
         </div>
       </div>
 
-      {/* Coaching grid */}
+      {/* Coaching grid (toggle: completed % / missed %) */}
       <div style={PANEL}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          <div style={H}>Coaching grid · salesperson × point</div>
-          <div style={SUB}>% of each person’s calls missing each point in this period</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          <div>
+            <div style={H}>Coaching grid · salesperson × point</div>
+            <div style={SUB}>% of each person’s calls {metricWord} each point in this period · shading = miss rate</div>
+          </div>
+          {pointToggle}
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "separate", borderSpacing: 2, fontSize: 12, width: "100%" }}>
@@ -420,14 +448,15 @@ export default function CallAssessments({ refreshKey = 0 }) {
                     const c = repGrid.cells.get(`${s.point}|${n}`);
                     if (!c) return <td key={n} style={{ textAlign: "center", color: "#3f4650", padding: "7px 4px" }}>·</td>;
                     const rate = (c.miss / c.n) * 100;
-                    return <td key={n} title={`${n} · ${shortName(s.point)}: missed on ${c.miss} of ${c.n} calls`}
-                      style={{ ...cellStyle(rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, minWidth: 44 }}>{Math.round(rate)}</td>;
+                    return <td key={n} title={`${n} · ${shortName(s.point)}: ${showingDone ? "completed on " + (c.n - c.miss) : "missed on " + c.miss} of ${c.n} calls`}
+                      style={{ ...cellStyle(rate), textAlign: "center", padding: "7px 4px", borderRadius: 4, minWidth: 44 }}>{dispVal(rate)}</td>;
                   })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <div style={{ ...SUB, marginTop: 10 }}>numbers show {showingDone ? "completed %" : "missed %"} · shading = missed % (darker = needs coaching)</div>
       </div>
 
       {/* Lowest-scoring calls */}
@@ -465,9 +494,9 @@ export default function CallAssessments({ refreshKey = 0 }) {
       </div>
 
       <div style={{ ...SUB, marginTop: 14 }}>
-        Source: CallGear AI Call Assessment, via the “Call Scores” and “Score Points” tabs. Only calls matching an active CallGear
-        scenario are scored (inbound only until the outbound scenario is switched on). Small samples swing a lot — read per-person
-        figures alongside the call count.
+        Source: CallGear AI Call Assessment, via the “Call Scores” and “Score Points” tabs. Completion % matches CallGear’s Script Points
+        screen; missed % is its inverse, shown for coaching. Only calls matching an active CallGear scenario are scored (inbound only until
+        the outbound scenario is switched on). Small samples swing a lot — read per-person figures alongside the call count.
       </div>
     </>
   );
