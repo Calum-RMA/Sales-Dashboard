@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import CallAssessments from "./CallAssessments.jsx";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
@@ -359,6 +360,7 @@ export default function App() {
   const [mode, setMode]         = useState("all");      // team: all | custom
   const [picked, setPicked]     = useState([]);
   const [trendMetric, setTrendMetric] = useState("enquiries");
+  const [tab, setTab] = useState("journey");            // journey | scores (AI Call Assessments)
 
   async function load() {
     setLoading(true); setError(null);
@@ -627,6 +629,21 @@ export default function App() {
           </div>
         </div>
 
+        {/* View tabs */}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:24, borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:0 }}>
+          {[["journey","Customer Journey"],["scores","AI Call Assessments"]].map(([k,lbl]) => (
+            <button key={k} onClick={()=>setTab(k)} style={{
+              background: tab===k ? "rgba(145,199,232,0.10)" : "transparent",
+              color: tab===k ? "#91c7e8" : "#94A3B8",
+              border:"1px solid rgba(255,255,255,0.08)", borderBottom: tab===k ? "2px solid #91c7e8" : "1px solid transparent",
+              borderRadius:"12px 12px 0 0", padding:"10px 18px", fontSize:13, fontWeight:700,
+              letterSpacing:"0.06em", textTransform:"uppercase", cursor:"pointer" }}>{lbl}</button>
+          ))}
+        </div>
+
+        {tab === "scores" && <CallAssessments refreshKey={refreshed ? refreshed.getTime() : 0} />}
+
+        {tab === "journey" && (<>
         {/* Controls */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:16, margin:"22px 0 8px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
@@ -844,6 +861,7 @@ export default function App() {
               : "No data to display."}
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

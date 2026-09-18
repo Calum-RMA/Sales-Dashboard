@@ -1,3 +1,5 @@
 /api/data   https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&sheet=Dashboard   200
 /api/daily  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&sheet=Daily       200
 /api/callbacks  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Callbacks   200
+/api/scores  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Call%20Scores   200
+/api/points  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Score%20Points  200
