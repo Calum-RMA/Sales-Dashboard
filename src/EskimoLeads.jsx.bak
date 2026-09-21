@@ -188,6 +188,19 @@ export default function EskimoLeads({ refreshKey = 0 }) {
   const th = { color: "#64748B", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px", textAlign: "left", fontWeight: 700 };
   const maxSource = sources.reduce((m, s) => Math.max(m, s.n), 0) || 1;
   const maxStage = STAGES.reduce((m, s) => Math.max(m, stageCounts[s] || 0), 0) || 1;
+  const downloadCSV = () => {
+    const cols = ["Lead ID", "Date Created", "Salesperson", "Team", "Source", "Source Group", "Status", "Stage"];
+    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const lines = [cols.join(",")];
+    cur.forEach((l) => lines.push([l.id, l.created, l.rep, l.team, l.source, l.group, l.status, l.stage].map(q).join(",")));
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "leads-" + (team || "all") + "-" + (rep || "everyone") + "-" + period + "-" + isoOf(new Date()) + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) return <div style={{ textAlign: "center", color: "#64748B", padding: "60px 0" }}>Loading leads…</div>;
   if (error) return (
@@ -219,6 +232,7 @@ export default function EskimoLeads({ refreshKey = 0 }) {
           <option value="">Everyone</option>
           {reps.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
+        <button onClick={downloadCSV} style={segBtn(false)} title="Download the leads matching the current filters, opens in Excel">⤓ Excel ({total})</button>
         <div style={{ ...SUB, marginLeft: "auto" }}>leads by creation date · {fmtDay(range.from)} – {fmtDay(range.to)}</div>
       </div>
 
