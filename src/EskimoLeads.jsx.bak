@@ -15,9 +15,9 @@ const GVIZ = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/t
 const LEADS_SRC = IS_LOCAL ? GVIZ("Eskimo Leads") : "/api/leads";
 
 /* Funnel order (a lead sits in exactly one stage). Lost is shown apart. */
-const STAGES = ["New", "Contacted", "Quoted", "Appointment", "Sale agreed", "Deposit received", "Sale complete"];
+const STAGES = ["New Opportunity", "Pending", "Contacted", "Quoted", "Appointment", "Sale agreed", "Deposit received", "Sale complete"];
 const STAGE_COLOR = {
-  "New": "#5a93c4", "Contacted": "#1f7fc4", "Quoted": "#91c7e8", "Appointment": "#6ee7b7",
+  "New Opportunity": "#5a93c4", "Pending": "#7d9cc0", "Contacted": "#1f7fc4", "Quoted": "#91c7e8", "Appointment": "#6ee7b7",
   "Sale agreed": "#fbbf24", "Deposit received": "#fb923c", "Sale complete": "#4ade80", "Lost": "#f4a6a3", "Other": "#64748B",
 };
 const WON = new Set(["Sale complete"]);
