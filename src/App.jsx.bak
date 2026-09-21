@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import CallAssessments from "./CallAssessments.jsx";
-import EskimoLeads from "./EskimoLeads.jsx";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
@@ -632,7 +631,7 @@ export default function App() {
 
         {/* View tabs */}
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:24, borderBottom:"1px solid rgba(255,255,255,0.08)", paddingBottom:0 }}>
-          {[["journey","Customer Journey"],["leads","Leads & Funnel"],["scores","AI Call Assessments"]].map(([k,lbl]) => (
+          {[["journey","Customer Journey"],["scores","AI Call Assessments"]].map(([k,lbl]) => (
             <button key={k} onClick={()=>setTab(k)} style={{
               background: tab===k ? "rgba(145,199,232,0.10)" : "transparent",
               color: tab===k ? "#91c7e8" : "#94A3B8",
@@ -643,7 +642,6 @@ export default function App() {
         </div>
 
         {tab === "scores" && <CallAssessments refreshKey={refreshed ? refreshed.getTime() : 0} />}
-        {tab === "leads" && <EskimoLeads refreshKey={refreshed ? refreshed.getTime() : 0} />}
 
         {tab === "journey" && (<>
         {/* Controls */}

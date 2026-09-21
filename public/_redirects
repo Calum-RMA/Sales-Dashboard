@@ -3,3 +3,4 @@
 /api/callbacks  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Callbacks   200
 /api/scores  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Call%20Scores   200
 /api/points  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Score%20Points  200
+/api/leads  https://docs.google.com/spreadsheets/d/1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw/gviz/tq?tqx=out:csv&headers=1&sheet=Eskimo%20Leads  200
