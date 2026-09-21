@@ -210,10 +210,9 @@ export default function EskimoLeads({ refreshKey = 0 }) {
           ))}
         </div>
         <select value={team} onChange={(e) => { setTeam(e.target.value); setRep(""); }} style={selectStyle}>
-          <option value="">All leads</option>
+          <option value="">Sales &amp; purchasers</option>
           <option value="Sales">Sales team</option>
           <option value="Purchasers">Purchasers</option>
-          <option value="Unassigned / Other">Unassigned / Other</option>
         </select>
         <select value={rep} onChange={(e) => setRep(e.target.value)} style={selectStyle}>
           <option value="">Everyone</option>
