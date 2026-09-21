@@ -14,11 +14,11 @@ const SHEET_ID = "1VBZivRXHMPSwqhjpDL2aHzrJe_iazlfSO_vfwsj9LWw";
 const GVIZ = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(tab)}`;
 const LEADS_SRC = IS_LOCAL ? GVIZ("Eskimo Leads") : "/api/leads";
 
-/* Funnel order (a lead sits in exactly one stage). Lost is shown apart. */
+/* Funnel order (a lead sits in exactly one stage). Closed is shown apart. */
 const STAGES = ["New Opportunity", "Pending", "Contacted", "Quoted", "Appointment", "Sale agreed", "Deposit received", "Sale complete"];
 const STAGE_COLOR = {
   "New Opportunity": "#5a93c4", "Pending": "#7d9cc0", "Contacted": "#1f7fc4", "Quoted": "#91c7e8", "Appointment": "#6ee7b7",
-  "Sale agreed": "#fbbf24", "Deposit received": "#fb923c", "Sale complete": "#4ade80", "Lost": "#f4a6a3", "Other": "#64748B",
+  "Sale agreed": "#fbbf24", "Deposit received": "#fb923c", "Sale complete": "#4ade80", "Closed": "#f4a6a3", "Other": "#64748B",
 };
 const WON = new Set(["Sale complete"]);
 const COMMITTED = new Set(["Deposit received", "Sale complete"]);           // money down or done
@@ -130,13 +130,13 @@ export default function EskimoLeads({ refreshKey = 0 }) {
 
   const total = cur.length;
   const stageCounts = useMemo(() => {
-    const m = {}; [...STAGES, "Lost", "Other"].forEach((s) => (m[s] = 0));
+    const m = {}; [...STAGES, "Closed", "Other"].forEach((s) => (m[s] = 0));
     cur.forEach((l) => { m[l.stage] = (m[l.stage] || 0) + 1; });
     return m;
   }, [cur]);
   const won = cur.filter((l) => WON.has(l.stage)).length;
   const committed = cur.filter((l) => COMMITTED.has(l.stage)).length;
-  const lost = stageCounts["Lost"] || 0;
+  const lost = stageCounts["Closed"] || 0;
   const live = total - won - lost;                     // still in play (not sold, not lost)
   const topSource = useMemo(() => {
     const m = {}; cur.forEach((l) => (m[l.group] = (m[l.group] || 0) + 1));
@@ -170,7 +170,7 @@ export default function EskimoLeads({ refreshKey = 0 }) {
       if (APPT_PLUS.has(l.stage)) o.appt++;
       if (COMMITTED.has(l.stage)) o.dep++;
       if (WON.has(l.stage)) o.won++;
-      if (l.stage === "Lost") o.lost++;
+      if (l.stage === "Closed") o.lost++;
     });
     return [...m.values()].map((o) => ({ ...o, conv: o.leads ? (o.won / o.leads) * 100 : 0 })).sort((a, b) => b.leads - a.leads);
   }, [cur]);
@@ -240,7 +240,7 @@ export default function EskimoLeads({ refreshKey = 0 }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginTop: 14 }}>
         <Card title="Leads" color="#1f7fc4" value={total} sub={`${teamSplit.map(([t, n]) => `${n} ${t.toLowerCase()}`).join(" · ")}`} />
         <Card title="In pipeline" color="#6ee7b7" value={live} sub={`still in play · ${committed} with a deposit`} />
-        <Card title="Sales complete" color="#4ade80" value={won} sub={<>{pctText(total ? (won / total) * 100 : 0)} of leads · {lost} lost</>} />
+        <Card title="Sales complete" color="#4ade80" value={won} sub={<>{pctText(total ? (won / total) * 100 : 0)} of leads · {lost} closed</>} />
         <Card title="Top source" color="#91c7e8"
           value={<span style={{ fontSize: 19, lineHeight: 1.25, display: "block" }}>{topSource ? topSource[0] : "–"}</span>}
           sub={topSource ? `${topSource[1]} leads (${pctText((topSource[1] / total) * 100)})` : null} />
@@ -250,7 +250,7 @@ export default function EskimoLeads({ refreshKey = 0 }) {
       <div style={PANEL}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
           <div style={H}>Pipeline funnel</div>
-          <div style={SUB}>where these leads sit right now · lost shown separately</div>
+          <div style={SUB}>where these leads sit right now · closed shown separately</div>
         </div>
         {STAGES.map((s) => {
           const n = stageCounts[s] || 0;
@@ -267,9 +267,9 @@ export default function EskimoLeads({ refreshKey = 0 }) {
           );
         })}
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", marginTop: 8, paddingTop: 8, display: "grid", gridTemplateColumns: "minmax(120px, 170px) 1fr 92px", gap: 10, alignItems: "center" }}>
-          <div style={{ color: "#f4a6a3", fontSize: 13 }}>Lost</div>
+          <div style={{ color: "#f4a6a3", fontSize: 13 }}>Closed</div>
           <div style={{ height: 16, borderRadius: 5, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-            <div style={{ width: `${Math.max(1, (lost / (maxStage || 1)) * 100)}%`, height: "100%", background: STAGE_COLOR["Lost"], borderRadius: "0 5px 5px 0" }} />
+            <div style={{ width: `${Math.max(1, (lost / (maxStage || 1)) * 100)}%`, height: "100%", background: STAGE_COLOR["Closed"], borderRadius: "0 5px 5px 0" }} />
           </div>
           <div style={{ textAlign: "right", color: "#fff", fontSize: 13, fontWeight: 700 }}>{lost}<span style={{ color: "#64748B", fontWeight: 500, fontSize: 11, marginLeft: 5 }}>{pctText(total ? (lost / total) * 100 : 0)}</span></div>
         </div>
@@ -322,7 +322,7 @@ export default function EskimoLeads({ refreshKey = 0 }) {
               <th style={th}>Person</th><th style={th}>Team</th>
               <th style={{ ...th, textAlign: "right" }}>Leads</th><th style={{ ...th, textAlign: "right" }}>Appts+</th>
               <th style={{ ...th, textAlign: "right" }}>Deposit+</th><th style={{ ...th, textAlign: "right" }}>Sold</th>
-              <th style={{ ...th, textAlign: "right" }}>Lost</th><th style={{ ...th, textAlign: "right" }}>Conv.</th>
+              <th style={{ ...th, textAlign: "right" }}>Closed</th><th style={{ ...th, textAlign: "right" }}>Conv.</th>
             </tr></thead>
             <tbody>
               {perRep.map((r) => (
