@@ -253,7 +253,6 @@ export default function CallAssessments({ refreshKey = 0 }) {
 
   // Grids/panels show completion % or missed % per the toggle; cell SHADING always uses the miss rate
   // (dark = needs attention) so the coaching read stays consistent whichever number is displayed.
-  const repAvg = new Map(repRows.map((r) => [r.rep, r.av]));
   const showingDone = pointMetric === "completed";
   const dispVal = (missRate) => Math.round(showingDone ? 100 - missRate : missRate);
   const metricWord = showingDone ? "completed" : "missed";
@@ -437,7 +436,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
             <thead><tr>
               <th />{repGrid.names.map((n) => (
                 <th key={n} style={{ ...th, textAlign: "center", whiteSpace: "nowrap" }}>
-                  {n.split(" ")[0]}<br /><span style={{ fontSize: 10, fontWeight: 500 }}>{repGrid.calls.get(n).size} calls</span><br /><span style={{ fontSize: 11, fontWeight: 800, color: "#91c7e8" }}>{pctText(repAvg.get(n))} avg</span>
+                  {n.split(" ")[0]}<br /><span style={{ fontSize: 10, fontWeight: 500 }}>{repGrid.calls.get(n).size} calls</span>
                 </th>
               ))}
             </tr></thead>
