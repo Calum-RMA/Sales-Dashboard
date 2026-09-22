@@ -132,7 +132,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
           score: toNum(r["score %"]) ?? (toNum(r["points total"]) ? Math.round((toNum(r["points hit"]) / toNum(r["points total"])) * 100) : null),
           target: toNum(r["target %"]) ?? 70, passed: String(r["passed"]).trim().toLowerCase() === "yes",
           hit: toNum(r["points hit"]), total: toNum(r["points total"]), missed: r["missed points"] || "",
-          talk: toNum(r["talk secs"]), number: r["number"] || "", summary: r["summary"] || "",
+          talk: toNum(r["talk secs"]), number: r["number"] || "", summary: r["summary"] || "", listen: (r["listen"] || "").trim(),
         })).filter((c) => c.date && c.score != null));
         setPoints(parseCSV(b).map((r) => ({
           date: normDate(r["date"]), id: String(r["call id"] || "").trim(), rep: (r["sales person"] || "").trim(),
@@ -478,6 +478,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
                   <td style={{ padding: "9px 10px", whiteSpace: "nowrap" }}>
                     {fmtDay(c.date)} {c.time}
                     <div style={{ color: "#64748B", fontSize: 11 }}>{c.dir} · {c.number}</div>
+                    {c.listen && <a href={c.listen} target="_blank" rel="noopener noreferrer" style={{ color: "#91c7e8", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>▶ Listen</a>}
                   </td>
                   <td style={{ padding: "9px 10px", color: "#E2E8F0", fontWeight: 600, whiteSpace: "nowrap" }}>{c.rep}</td>
                   <td style={{ padding: "9px 10px", textAlign: "right", color: c.passed ? "#4ade80" : "#f4a6a3", fontWeight: 700 }}>{pctText(c.score)}</td>
