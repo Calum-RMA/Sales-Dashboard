@@ -251,8 +251,8 @@ export default function CallAssessments({ refreshKey = 0 }) {
     border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer",
   });
   const selectStyle = {
-    background: "rgba(255,255,255,0.05)", color: "#E2E8F0", border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 600,
+    background: "#1b1e23", color: "#E2E8F0", border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 600, colorScheme: "dark",
   };
   const th = { color: "#64748B", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px", textAlign: "left", fontWeight: 700 };
   const rowh = { ...th, color: "#E2E8F0", textTransform: "none", letterSpacing: 0, fontSize: 12, fontWeight: 500, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };

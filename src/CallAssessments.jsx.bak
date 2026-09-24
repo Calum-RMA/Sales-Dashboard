@@ -117,6 +117,7 @@ export default function CallAssessments({ refreshKey = 0 }) {
   const [period, setPeriod] = useState("30");   // 7 | 30 | 90 | all
   const [rep, setRep] = useState("");
   const [dir, setDir] = useState("");
+  const [scoreBand, setScoreBand] = useState("");   // "" = all; else "20-30" style band
   const [pointMetric, setPointMetric] = useState("completed");   // "completed" (matches CallGear) | "missed" (coaching)
 
   useEffect(() => {
@@ -238,7 +239,12 @@ export default function CallAssessments({ refreshKey = 0 }) {
     return cells;
   }, [pCur, bucketKeys, daily]);
 
-  const lowest = useMemo(() => cur.slice().sort((a, b) => a.score - b.score).slice(0, 12), [cur]);
+  const lowest = useMemo(() => {
+    const sorted = cur.slice().sort((a, b) => a.score - b.score);
+    if (!scoreBand) return sorted.slice(0, 12);
+    const [lo, hi] = scoreBand.split("-").map(Number);
+    return sorted.filter((c) => c.score >= lo && (hi >= 100 ? c.score <= 100 : c.score < hi)).slice(0, 200);
+  }, [cur, scoreBand]);
 
   const segBtn = (active) => ({
     background: active ? "#ed2624" : "rgba(255,255,255,0.05)", color: active ? "#fff" : "#94A3B8",
@@ -462,9 +468,17 @@ export default function CallAssessments({ refreshKey = 0 }) {
 
       {/* Lowest-scoring calls */}
       <div style={PANEL}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          <div style={H}>Lowest-scoring calls</div>
-          <div style={SUB}>the 12 lowest scores in this period, with the AI summary</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          <div>
+            <div style={H}>{scoreBand ? `Calls scoring ${scoreBand.split("-").join("–")}%` : "Lowest-scoring calls"}</div>
+            <div style={SUB}>{scoreBand ? `${lowest.length} call${lowest.length === 1 ? "" : "s"} in this band, lowest first` : "the 12 lowest scores in this period, with the AI summary"}</div>
+          </div>
+          <select value={scoreBand} onChange={(e) => setScoreBand(e.target.value)} style={selectStyle}>
+            <option value="">Lowest 12 (default)</option>
+            {[["0-10","0–10%"],["10-20","10–20%"],["20-30","20–30%"],["30-40","30–40%"],["40-50","40–50%"],["50-60","50–60%"],["60-70","60–70%"],["70-80","70–80%"],["80-90","80–90%"],["90-100","90–100%"]].map(([v, lbl]) => (
+              <option key={v} value={v}>{lbl}</option>
+            ))}
+          </select>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
