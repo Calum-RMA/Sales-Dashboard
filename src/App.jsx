@@ -107,6 +107,7 @@ function makeRowParser(headerLine) {
     outbound:     col(/outbound/),
     inbound:      col(/inbound/),
     connected:    col(/connected/),
+    uniqueCalled: col(/unique\s*customers?\s*called/),
   };
   const num = (cols, i) => {
     if (i == null || i < 0) return 0;
@@ -120,7 +121,7 @@ function makeRowParser(headerLine) {
   return { idx, num };
 }
 
-const METRIC_KEYS = ["enquiries","snapCells","appointments","apptsKept","quotes","orders","outbound","inbound","connected"];
+const METRIC_KEYS = ["enquiries","snapCells","appointments","apptsKept","quotes","orders","outbound","inbound","connected","uniqueCalled"];
 
 function parseMonthly(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
@@ -200,14 +201,16 @@ function calcMetrics(rows) {
   const s = (k) => rows.reduce((a, r) => a + (+r[k] || 0), 0);
   const enq=s("enquiries"), snap=s("snapCells"), appt=s("appointments"),
         kept=s("apptsKept"), quot=s("quotes"), ord=s("orders"),
-        out=s("outbound"), inb=s("inbound"), conn=s("connected");
+        out=s("outbound"), inb=s("inbound"), conn=s("connected"),
+        uniqCalled=s("uniqueCalled");
   return {
-    enquiries:enq, snapCells:snap, appointments:appt, apptsKept:kept, quotes:quot, orders:ord, outbound:out, inbound:inb, connected:conn,
+    enquiries:enq, snapCells:snap, appointments:appt, apptsKept:kept, quotes:quot, orders:ord, outbound:out, inbound:inb, connected:conn, uniqueCalled:uniqCalled,
     snapRate:  enq ? snap/enq : 0,
     apptRate:  enq ? appt/enq : 0,
     keptRate:  appt? kept/appt: 0,
     quoteRate: enq ? quot/enq : 0,
     orderRate: enq ? ord/enq  : 0,
+    dialsPerCustomer: uniqCalled ? out/uniqCalled : 0,
   };
 }
 
@@ -558,13 +561,14 @@ export default function App() {
     { key:"apptsKept",   title:"Appts Kept",       color:"#5a93c4", num:(x)=>fmtNum(x.apptsKept),   sub:(x)=>`${pct(x.keptRate)} of booked`,    target:TARGETS.kept },
     { key:"quotes",      title:"Quotes",           color:"#7fb2d8", num:(x)=>fmtNum(x.quotes),      sub:(x)=>`${pct(x.quoteRate)} of enquiries`,target:TARGETS.quote },
     { key:"orders",      title:"Total Orders",     color:"#ed2624", num:(x)=>fmtNum(x.orders),      sub:(x)=>`${pct(x.orderRate)} order rate`,  target:TARGETS.order },
-    { key:"outbound",    title:"Outbound Calls",   color:"#3f8fcf", num:(x)=>fmtNum(x.outbound) },
+    { key:"outbound",    title:"Outbound Calls",   color:"#3f8fcf", num:(x)=>fmtNum(x.outbound), sub:(x)=> x.uniqueCalled ? `${x.dialsPerCustomer.toFixed(1)} dials per customer` : null },
+    { key:"uniqueCalled",title:"Customers Called", color:"#6fb0da", num:(x)=>fmtNum(x.uniqueCalled), sub:(x)=> x.uniqueCalled ? `distinct numbers dialled` : null },
     { key:"inbound",     title:"Inbound Calls",    color:"#b9dcf0", num:(x)=>fmtNum(x.inbound) },
     { key:"connected",   title:"Connected Calls",  color:"#c74038", num:(x)=>fmtNum(x.connected), sub:connSub, targetText:connTargetText },
   ];
   const METRIC_TABS = [
     ["enquiries","Customers"],["snapCells","Snap Cells"],["appointments","Appts"],
-    ["quotes","Quotes"],["orders","Orders"],["outbound","Outbound"],["inbound","Inbound"],["connected","Connected"],
+    ["quotes","Quotes"],["orders","Orders"],["outbound","Outbound"],["uniqueCalled","Called"],["inbound","Inbound"],["connected","Connected"],
   ];
 
   const noDaily = (gran === "day" || gran === "week") && (!dailyOk || daily.length === 0);
@@ -828,7 +832,7 @@ export default function App() {
                       <th style={{ padding:"8px 10px" }}>Customers</th><th style={{ padding:"8px 10px" }}>Snap</th>
                       <th style={{ padding:"8px 10px" }}>Appts</th><th style={{ padding:"8px 10px" }}>Kept</th>
                       <th style={{ padding:"8px 10px" }}>Quotes</th><th style={{ padding:"8px 10px" }}>Orders</th>
-                      <th style={{ padding:"8px 10px" }}>Outbound</th><th style={{ padding:"8px 10px" }}>Inbound</th><th style={{ padding:"8px 10px" }}>Connected</th>
+                      <th style={{ padding:"8px 10px" }}>Outbound</th><th style={{ padding:"8px 10px" }}>Called</th><th style={{ padding:"8px 10px" }}>Inbound</th><th style={{ padding:"8px 10px" }}>Connected</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -844,11 +848,12 @@ export default function App() {
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.quotes)}</td>
                         <td style={{ padding:"9px 10px", color:"#F1F5F9", fontWeight:700 }}>{fmtNum(p.orders)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.outbound)}</td>
+                        <td style={{ padding:"9px 10px" }}>{fmtNum(p.uniqueCalled)}</td>
                         <td style={{ padding:"9px 10px" }}>{fmtNum(p.inbound)}</td>
                         <td style={{ padding:"9px 10px", color:"#91c7e8", fontWeight:700 }}>{fmtNum(p.connected)}</td>
                       </tr>
                     ))}
-                    {perPerson.length === 0 && <tr><td colSpan={10} style={{ padding:"18px", textAlign:"center", color:"#64748B" }}>No data for this selection.</td></tr>}
+                    {perPerson.length === 0 && <tr><td colSpan={11} style={{ padding:"18px", textAlign:"center", color:"#64748B" }}>No data for this selection.</td></tr>}
                   </tbody>
                 </table>
               </div>
